@@ -358,7 +358,11 @@
             records.forEach(record => {
                 html += '<tr>';
                 Object.values(record).forEach(value => {
-                    html += `<td>${value !== null ? value : '<span class="null-value">NULL</span>'}</td>`;
+                    const displayValue = value !== null ? value : '<span class="null-value">NULL</span>';
+                    const isTruncated = value !== null && String(value).length > 30;
+                    const titleAttr = isTruncated ? `title="${String(value).replace(/"/g, '&quot;')}"` : '';
+                    const truncatedClass = isTruncated ? ' class="truncated-value"' : '';
+                    html += `<td${truncatedClass} ${titleAttr}>${displayValue}</td>`;
                 });
                 html += '</tr>';
             });
@@ -484,11 +488,20 @@
                     'only-db2': '❌ Só BD2'
                 }[result.status];
 
+                const db1Value = result.db1Record ? JSON.stringify(result.db1Record, null, 2) : '-';
+                const db2Value = result.db2Record ? JSON.stringify(result.db2Record, null, 2) : '-';
+                const db1Truncated = db1Value.length > 50;
+                const db2Truncated = db2Value.length > 50;
+                const db1Title = db1Truncated ? `title="${db1Value.replace(/"/g, '&quot;')}"` : '';
+                const db2Title = db2Truncated ? `title="${db2Value.replace(/"/g, '&quot;')}"` : '';
+                const db1Class = db1Truncated ? ' class="truncated-value"' : '';
+                const db2Class = db2Truncated ? ' class="truncated-value"' : '';
+
                 html += `<tr class="comparison-row ${statusClass}">`;
                 html += `<td><span class="status-badge ${statusClass}">${statusText}</span></td>`;
                 html += `<td><strong>${result.compareValue}</strong></td>`;
-                html += `<td>${result.db1Record ? JSON.stringify(result.db1Record) : '-'}</td>`;
-                html += `<td>${result.db2Record ? JSON.stringify(result.db2Record) : '-'}</td>`;
+                html += `<td${db1Class} ${db1Title}>${db1Value}</td>`;
+                html += `<td${db2Class} ${db2Title}>${db2Value}</td>`;
                 html += '</tr>';
             });
 

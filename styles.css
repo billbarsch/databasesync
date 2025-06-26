@@ -1176,6 +1176,30 @@ header h1 {
     padding: 8px 12px;
     border: 1px solid #ddd;
     text-align: left;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+}
+
+/* Ajustar larguras específicas para algumas colunas */
+.records-table th:first-child,
+.records-table td:first-child {
+    max-width: 100px;
+    /* ID ou chave primária - menor */
+}
+
+.records-table th:nth-child(2),
+.records-table td:nth-child(2) {
+    max-width: 150px;
+    /* Segunda coluna - média */
+}
+
+.records-table th:last-child,
+.records-table td:last-child {
+    max-width: 300px;
+    /* Última coluna - pode ser maior */
 }
 
 .records-table th {
@@ -1194,9 +1218,47 @@ header h1 {
     background: #e3f2fd;
 }
 
+.records-table td:hover {
+    cursor: pointer;
+}
+
+/* Tooltip para valores completos */
+.records-table td[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    z-index: 1000;
+    background: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-width: 300px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    top: 100%;
+    left: 0;
+    margin-top: 5px;
+}
+
 .null-value {
     color: #999;
     font-style: italic;
+}
+
+.truncated-value {
+    position: relative;
+}
+
+.truncated-value::after {
+    content: "📄";
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.7em;
+    opacity: 0.6;
+    pointer-events: none;
 }
 
 .no-data-message {
@@ -1277,6 +1339,35 @@ header h1 {
     padding: 12px;
     border: 1px solid #ddd;
     text-align: left;
+    max-width: 250px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+}
+
+/* Larguras específicas para tabela de comparação */
+.comparison-table-detailed th:first-child,
+.comparison-table-detailed td:first-child {
+    max-width: 120px;
+    /* Coluna de status */
+    min-width: 120px;
+}
+
+.comparison-table-detailed th:nth-child(2),
+.comparison-table-detailed td:nth-child(2) {
+    max-width: 150px;
+    /* Valor de comparação */
+    min-width: 100px;
+}
+
+.comparison-table-detailed th:nth-child(3),
+.comparison-table-detailed td:nth-child(3),
+.comparison-table-detailed th:nth-child(4),
+.comparison-table-detailed td:nth-child(4) {
+    max-width: 350px;
+    /* Registros - podem ser maiores */
+    min-width: 200px;
 }
 
 .comparison-table-detailed th {
@@ -1301,6 +1392,29 @@ header h1 {
 
 .comparison-row.only_db2 {
     background: #d1ecf1;
+}
+
+.comparison-table-detailed td:hover {
+    cursor: pointer;
+}
+
+/* Tooltip para tabela de comparação */
+.comparison-table-detailed td[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    z-index: 1000;
+    background: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-width: 400px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    top: 100%;
+    left: 0;
+    margin-top: 5px;
 }
 
 .status-badge {

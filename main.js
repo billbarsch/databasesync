@@ -205,8 +205,25 @@ ipcMain.handle('get-tables-comparison', async () => {
             return { success: false, message: 'Configurações de banco não encontradas' };
         }
 
-        const conn1 = await mysql.createConnection(dbConfig1);
-        const conn2 = await mysql.createConnection(dbConfig2);
+        // Remover connectionName antes de passar para MySQL
+        const mysqlConfig1 = {
+            host: dbConfig1.host,
+            port: dbConfig1.port,
+            user: dbConfig1.user,
+            password: dbConfig1.password,
+            database: dbConfig1.database
+        };
+
+        const mysqlConfig2 = {
+            host: dbConfig2.host,
+            port: dbConfig2.port,
+            user: dbConfig2.user,
+            password: dbConfig2.password,
+            database: dbConfig2.database
+        };
+
+        const conn1 = await mysql.createConnection(mysqlConfig1);
+        const conn2 = await mysql.createConnection(mysqlConfig2);
 
         // Obter tabelas do banco 1
         const [tables1] = await conn1.execute('SHOW TABLES');
@@ -218,14 +235,36 @@ ipcMain.handle('get-tables-comparison', async () => {
 
         // Obter todas as tabelas únicas
         const allTables = [...new Set([...tableNames1, ...tableNames2])];
+        const totalTables = allTables.length;
 
         const comparison = [];
 
-        for (const tableName of allTables) {
+        // Enviar progresso inicial
+        if (compareWindow && !compareWindow.isDestroyed()) {
+            compareWindow.webContents.send('comparison-progress', {
+                current: 0,
+                total: totalTables,
+                currentTable: 'Iniciando análise...',
+                stage: 'Preparando comparação'
+            });
+        }
+
+        for (let i = 0; i < allTables.length; i++) {
+            const tableName = allTables[i];
             let count1 = 0;
             let count2 = 0;
             let exists1 = tableNames1.includes(tableName);
             let exists2 = tableNames2.includes(tableName);
+
+            // Enviar progresso atual
+            if (compareWindow && !compareWindow.isDestroyed()) {
+                compareWindow.webContents.send('comparison-progress', {
+                    current: i + 1,
+                    total: totalTables,
+                    currentTable: tableName,
+                    stage: 'Contando registros'
+                });
+            }
 
             if (exists1) {
                 const [result1] = await conn1.execute(`SELECT COUNT(*) as count FROM \`${tableName}\``);
@@ -243,12 +282,42 @@ ipcMain.handle('get-tables-comparison', async () => {
                 count2,
                 exists1,
                 exists2,
-                different: count1 !== count2 || exists1 !== exists2
+                different: count1 !== count2 || exists1 !== exists2,
+                difference: Math.abs(count1 - count2)
             });
         }
 
+        // Ordenar por diferenças (maior diferença primeiro)
+        comparison.sort((a, b) => {
+            // Prioridade 1: Tabelas faltantes primeiro
+            if ((!a.exists1 || !a.exists2) && (b.exists1 && b.exists2)) return -1;
+            if ((a.exists1 && a.exists2) && (!b.exists1 || !b.exists2)) return 1;
+
+            // Prioridade 2: Tabelas com diferenças
+            if (a.different && !b.different) return -1;
+            if (!a.different && b.different) return 1;
+
+            // Prioridade 3: Maior diferença numérica primeiro
+            if (a.different && b.different) {
+                return b.difference - a.difference;
+            }
+
+            // Prioridade 4: Ordem alfabética para tabelas iguais
+            return a.tableName.localeCompare(b.tableName);
+        });
+
         await conn1.end();
         await conn2.end();
+
+        // Enviar progresso de finalização
+        if (compareWindow && !compareWindow.isDestroyed()) {
+            compareWindow.webContents.send('comparison-progress', {
+                current: totalTables,
+                total: totalTables,
+                currentTable: 'Concluído!',
+                stage: 'Salvando histórico'
+            });
+        }
 
         // Salvar no histórico
         await dbManager.saveComparisonHistory(
@@ -259,13 +328,19 @@ ipcMain.handle('get-tables-comparison', async () => {
             dbConfig2.connectionName || dbConfig2.database
         );
 
+        // Enviar progresso final
+        if (compareWindow && !compareWindow.isDestroyed()) {
+            compareWindow.webContents.send('comparison-complete');
+        }
+
         return {
             success: true,
             data: comparison,
             db1Name: dbConfig1.database,
             db2Name: dbConfig2.database,
             db1DisplayName: dbConfig1.connectionName || dbConfig1.database,
-            db2DisplayName: dbConfig2.connectionName || dbConfig2.database
+            db2DisplayName: dbConfig2.connectionName || dbConfig2.database,
+            totalTables: totalTables
         };
     } catch (error) {
         console.error('Erro na comparação:', error);

@@ -35,6 +35,11 @@
                             <option value="missing">Tabelas faltantes</option>
                         </select>
                     </div>
+
+                    <div class="info-badge">
+                        <i class="icon">📋</i>
+                        <span>Ordenado por diferenças (maiores primeiro)</span>
+                    </div>
                 </div>
 
                 <div class="toolbar-right">
@@ -58,7 +63,18 @@
             <div class="comparison-section">
                 <div id="loading" class="loading-section" style="display: none;">
                     <div class="loading-spinner"></div>
-                    <p>Carregando comparação...</p>
+                    <div class="loading-content">
+                        <h3 id="loading-stage">Preparando comparação...</h3>
+                        <p id="loading-details">Iniciando análise das tabelas</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-stats">
+                            <span id="progress-current">0</span> de <span id="progress-total">0</span> tabelas
+                            analisadas
+                        </div>
+                        <p id="current-table">Aguardando...</p>
+                    </div>
                 </div>
 
                 <div id="comparison-header" class="comparison-header" style="display: none;">
@@ -102,7 +118,47 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             loadComparison();
+            setupProgressListeners();
         });
+
+        // Limpar listeners quando a janela é fechada
+        window.addEventListener('beforeunload', () => {
+            ipcRenderer.removeAllListeners('comparison-progress');
+            ipcRenderer.removeAllListeners('comparison-complete');
+        });
+
+        function setupProgressListeners() {
+            // Escutar atualizações de progresso
+            ipcRenderer.on('comparison-progress', (event, progress) => {
+                updateProgress(progress);
+            });
+
+            // Escutar conclusão da comparação
+            ipcRenderer.on('comparison-complete', () => {
+                // A interface será atualizada quando loadComparison terminar
+            });
+        }
+
+        function updateProgress(progress) {
+            const loadingStage = document.getElementById('loading-stage');
+            const loadingDetails = document.getElementById('loading-details');
+            const progressFill = document.getElementById('progress-fill');
+            const progressCurrent = document.getElementById('progress-current');
+            const progressTotal = document.getElementById('progress-total');
+            const currentTable = document.getElementById('current-table');
+
+            if (loadingStage) loadingStage.textContent = progress.stage;
+            if (loadingDetails) loadingDetails.textContent = `Analisando tabela: ${progress.currentTable}`;
+            if (progressCurrent) progressCurrent.textContent = progress.current;
+            if (progressTotal) progressTotal.textContent = progress.total;
+            if (currentTable) currentTable.textContent = `📊 ${progress.currentTable}`;
+
+            // Atualizar barra de progresso
+            if (progressFill && progress.total > 0) {
+                const percentage = (progress.current / progress.total) * 100;
+                progressFill.style.width = percentage + '%';
+            }
+        }
 
         async function loadComparison() {
             showLoading(true);
@@ -188,7 +244,11 @@
         function getStatusText(item) {
             if (!item.exists1) return 'Faltante no BD1';
             if (!item.exists2) return 'Faltante no BD2';
-            if (item.different) return `Diferença: ${Math.abs(item.count1 - item.count2).toLocaleString()}`;
+            if (item.different) {
+                const diff = Math.abs(item.count1 - item.count2);
+                const percentage = item.count1 > 0 ? ((diff / Math.max(item.count1, item.count2)) * 100).toFixed(1) : 0;
+                return `Diferença: ${diff.toLocaleString()} (${percentage}%)`;
+            }
             return 'Igual';
         }
 

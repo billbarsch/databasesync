@@ -1018,6 +1018,122 @@ header h1 {
     gap: 15px;
 }
 
+/* Filtros múltiplos */
+.filters-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.filter-row {
+    display: flex;
+    gap: 10px;
+    align-items: end;
+    padding: 15px;
+    background: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    position: relative;
+}
+
+.filter-row:not(:first-child) {
+    border-top: 3px solid #667eea;
+}
+
+.filter-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 80px;
+    gap: 10px;
+    flex: 1;
+}
+
+.filter-actions {
+    display: flex;
+    align-items: end;
+    margin-left: 10px;
+}
+
+.btn-remove-filter {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8em;
+    transition: all 0.3s ease;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-remove-filter:hover:not(:disabled) {
+    background: #c82333;
+    transform: scale(1.05);
+}
+
+.btn-remove-filter:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.filter-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding-top: 15px;
+    border-top: 1px solid #e1e5e9;
+}
+
+.logic-indicator {
+    position: absolute;
+    top: -15px;
+    left: 20px;
+    background: #667eea;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 0.7em;
+    font-weight: 600;
+}
+
+.filter-summary {
+    background: #f8f9fa;
+    border: 1px solid #e1e5e9;
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 15px;
+    font-size: 0.9em;
+    color: #495057;
+    font-family: monospace;
+    word-break: break-word;
+}
+
+.filter-summary strong {
+    color: #667eea;
+}
+
+.filter-summary.empty {
+    display: none;
+}
+
+/* Esconder lógica no último filtro */
+.filter-row:last-child .logic-select {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.filter-row:last-child .form-group:has(.logic-select) label::after {
+    content: " (não usado)";
+    font-size: 0.8em;
+    color: #999;
+    font-weight: normal;
+}
+
 .filter-form .form-group {
     display: flex;
     flex-direction: column;
@@ -1565,5 +1681,49 @@ header h1 {
     .comparison-tabs {
         flex-wrap: wrap;
         gap: 5px;
+    }
+
+    /* Filtros múltiplos responsivo */
+    .filter-fields {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+    }
+
+    .filter-actions {
+        margin-left: 0;
+        justify-content: center;
+    }
+
+    .filter-controls {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .logic-indicator {
+        position: static;
+        width: fit-content;
+        margin-bottom: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .filter-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-controls .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .btn-remove-filter {
+        width: auto;
+        min-width: 100px;
     }
 }

@@ -490,8 +490,8 @@ ipcMain.handle('get-table-fields', async (event, tableName) => {
     }
 });
 
-// Buscar registros com filtro
-ipcMain.handle('search-table-records', async (event, { tableName, database, filter }) => {
+// Buscar registros com filtros múltiplos
+ipcMain.handle('search-table-records', async (event, { tableName, database, filters }) => {
     try {
         const dbConfig1 = await dbManager.getDbConfig('database1');
         const dbConfig2 = await dbManager.getDbConfig('database2');
@@ -516,18 +516,40 @@ ipcMain.handle('search-table-records', async (event, { tableName, database, filt
         let query = `SELECT * FROM \`${tableName}\``;
         let params = [];
 
-        // Construir WHERE clause
-        if (filter.field) {
-            if (['IS NULL', 'IS NOT NULL'].includes(filter.operator)) {
-                query += ` WHERE \`${filter.field}\` ${filter.operator}`;
-            } else {
-                query += ` WHERE \`${filter.field}\` ${filter.operator} ?`;
-                params.push(filter.value);
+        // Construir WHERE clause com múltiplos filtros
+        if (filters && filters.length > 0) {
+            const whereConditions = [];
+
+            filters.forEach((filter, index) => {
+                if (filter.field) {
+                    let condition = '';
+
+                    if (['IS NULL', 'IS NOT NULL'].includes(filter.operator)) {
+                        condition = `\`${filter.field}\` ${filter.operator}`;
+                    } else {
+                        condition = `\`${filter.field}\` ${filter.operator} ?`;
+                        params.push(filter.value);
+                    }
+
+                    // Adicionar operador lógico se não for o primeiro filtro
+                    if (index > 0 && filters[index - 1].logic) {
+                        condition = `${filters[index - 1].logic} ${condition}`;
+                    }
+
+                    whereConditions.push(condition);
+                }
+            });
+
+            if (whereConditions.length > 0) {
+                query += ` WHERE ${whereConditions.join(' ')}`;
             }
         }
 
         // Limitar resultados para performance
         query += ' LIMIT 1000';
+
+        console.log(`🔍 Query executada: ${query}`);
+        console.log(`📊 Parâmetros: `, params);
 
         const [records] = await conn.execute(query, params);
 
@@ -535,7 +557,8 @@ ipcMain.handle('search-table-records', async (event, { tableName, database, filt
 
         return {
             success: true,
-            records: records
+            records: records,
+            query: query // Para debug
         };
     } catch (error) {
         console.error('❌ Erro ao buscar registros:', error);

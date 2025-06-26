@@ -28,39 +28,65 @@
                         <div class="filter-column">
                             <h4 id="db1-filter-title">Banco 1</h4>
                             <div class="filter-form">
-                                <div class="form-group">
-                                    <label>Campo:</label>
-                                    <select id="db1-field-select">
-                                        <option value="">Carregando campos...</option>
-                                    </select>
+                                <div class="filters-container" id="db1-filters-container">
+                                    <div class="filter-row" data-filter-index="0">
+                                        <div class="filter-fields">
+                                            <div class="form-group">
+                                                <label>Campo:</label>
+                                                <select class="field-select" data-database="db1" data-index="0">
+                                                    <option value="">Carregando campos...</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Operador:</label>
+                                                <select class="operator-select" data-index="0">
+                                                    <option value="=">=</option>
+                                                    <option value="!=">!=</option>
+                                                    <option value=">">&gt;</option>
+                                                    <option value="<">&lt;</option>
+                                                    <option value=">=">&gt;=</option>
+                                                    <option value="<=">&lt;=</option>
+                                                    <option value="LIKE">LIKE</option>
+                                                    <option value="NOT LIKE">NOT LIKE</option>
+                                                    <option value="IS NULL">IS NULL</option>
+                                                    <option value="IS NOT NULL">IS NOT NULL</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Valor:</label>
+                                                <input type="text" class="value-input" data-index="0"
+                                                    placeholder="Digite o valor...">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Lógica:</label>
+                                                <select class="logic-select" data-index="0">
+                                                    <option value="AND">E (AND)</option>
+                                                    <option value="OR">OU (OR)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="filter-actions">
+                                            <button class="btn-remove-filter" onclick="removeFilter('db1', 0)"
+                                                title="Remover filtro" disabled>
+                                                <i class="icon">❌</i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label>Operador:</label>
-                                    <select id="db1-operator-select">
-                                        <option value="=">=</option>
-                                        <option value="!=">!=</option>
-                                        <option value=">">&gt;</option>
-                                        <option value="<">&lt;</option>
-                                        <option value=">=">&gt;=</option>
-                                        <option value="<=">&lt;=</option>
-                                        <option value="LIKE">LIKE</option>
-                                        <option value="NOT LIKE">NOT LIKE</option>
-                                        <option value="IS NULL">IS NULL</option>
-                                        <option value="IS NOT NULL">IS NOT NULL</option>
-                                    </select>
+                                <div class="filter-controls">
+                                    <button class="btn btn-secondary" onclick="addFilter('db1')">
+                                        <i class="icon">➕</i>
+                                        Adicionar Filtro
+                                    </button>
+                                    <button class="btn btn-primary" onclick="searchRecords('db1')">
+                                        <i class="icon">🔍</i>
+                                        Buscar
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="clearAllFilters('db1')">
+                                        <i class="icon">🗑️</i>
+                                        Limpar Todos
+                                    </button>
                                 </div>
-                                <div class="form-group">
-                                    <label>Valor:</label>
-                                    <input type="text" id="db1-value-input" placeholder="Digite o valor...">
-                                </div>
-                                <button class="btn btn-primary" onclick="searchRecords('db1')">
-                                    <i class="icon">🔍</i>
-                                    Buscar
-                                </button>
-                                <button class="btn btn-secondary" onclick="clearFilter('db1')">
-                                    <i class="icon">🗑️</i>
-                                    Limpar
-                                </button>
                             </div>
                         </div>
 
@@ -68,39 +94,65 @@
                         <div class="filter-column">
                             <h4 id="db2-filter-title">Banco 2</h4>
                             <div class="filter-form">
-                                <div class="form-group">
-                                    <label>Campo:</label>
-                                    <select id="db2-field-select">
-                                        <option value="">Carregando campos...</option>
-                                    </select>
+                                <div class="filters-container" id="db2-filters-container">
+                                    <div class="filter-row" data-filter-index="0">
+                                        <div class="filter-fields">
+                                            <div class="form-group">
+                                                <label>Campo:</label>
+                                                <select class="field-select" data-database="db2" data-index="0">
+                                                    <option value="">Carregando campos...</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Operador:</label>
+                                                <select class="operator-select" data-index="0">
+                                                    <option value="=">=</option>
+                                                    <option value="!=">!=</option>
+                                                    <option value=">">&gt;</option>
+                                                    <option value="<">&lt;</option>
+                                                    <option value=">=">&gt;=</option>
+                                                    <option value="<=">&lt;=</option>
+                                                    <option value="LIKE">LIKE</option>
+                                                    <option value="NOT LIKE">NOT LIKE</option>
+                                                    <option value="IS NULL">IS NULL</option>
+                                                    <option value="IS NOT NULL">IS NOT NULL</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Valor:</label>
+                                                <input type="text" class="value-input" data-index="0"
+                                                    placeholder="Digite o valor...">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Lógica:</label>
+                                                <select class="logic-select" data-index="0">
+                                                    <option value="AND">E (AND)</option>
+                                                    <option value="OR">OU (OR)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="filter-actions">
+                                            <button class="btn-remove-filter" onclick="removeFilter('db2', 0)"
+                                                title="Remover filtro" disabled>
+                                                <i class="icon">❌</i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label>Operador:</label>
-                                    <select id="db2-operator-select">
-                                        <option value="=">=</option>
-                                        <option value="!=">!=</option>
-                                        <option value=">">&gt;</option>
-                                        <option value="<">&lt;</option>
-                                        <option value=">=">&gt;=</option>
-                                        <option value="<=">&lt;=</option>
-                                        <option value="LIKE">LIKE</option>
-                                        <option value="NOT LIKE">NOT LIKE</option>
-                                        <option value="IS NULL">IS NULL</option>
-                                        <option value="IS NOT NULL">IS NOT NULL</option>
-                                    </select>
+                                <div class="filter-controls">
+                                    <button class="btn btn-secondary" onclick="addFilter('db2')">
+                                        <i class="icon">➕</i>
+                                        Adicionar Filtro
+                                    </button>
+                                    <button class="btn btn-primary" onclick="searchRecords('db2')">
+                                        <i class="icon">🔍</i>
+                                        Buscar
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="clearAllFilters('db2')">
+                                        <i class="icon">🗑️</i>
+                                        Limpar Todos
+                                    </button>
                                 </div>
-                                <div class="form-group">
-                                    <label>Valor:</label>
-                                    <input type="text" id="db2-value-input" placeholder="Digite o valor...">
-                                </div>
-                                <button class="btn btn-primary" onclick="searchRecords('db2')">
-                                    <i class="icon">🔍</i>
-                                    Buscar
-                                </button>
-                                <button class="btn btn-secondary" onclick="clearFilter('db2')">
-                                    <i class="icon">🗑️</i>
-                                    Limpar
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -246,6 +298,10 @@
                 document.getElementById('current-table-name').textContent = currentTableName;
                 await loadTableFields();
                 await loadDatabaseNames();
+
+                // Inicializar botões de remoção
+                updateRemoveButtons('db1');
+                updateRemoveButtons('db2');
             }
         }
 
@@ -285,65 +341,82 @@
         }
 
         function populateFieldSelects() {
-            const db1Select = document.getElementById('db1-field-select');
-            const db2Select = document.getElementById('db2-field-select');
             const compareSelect = document.getElementById('compare-field-select');
 
-            // Limpar selects
-            db1Select.innerHTML = '<option value="">Selecione um campo...</option>';
-            db2Select.innerHTML = '<option value="">Selecione um campo...</option>';
+            // Limpar select de comparação
             compareSelect.innerHTML = '<option value="">Selecione um campo...</option>';
 
-            // Adicionar campos
+            // Adicionar campos ao select de comparação
             tableFields.forEach(field => {
-                const option1 = new Option(field.name, field.name);
-                const option2 = new Option(field.name, field.name);
-                const option3 = new Option(field.name, field.name);
-
-                db1Select.add(option1);
-                db2Select.add(option2);
-                compareSelect.add(option3);
+                const option = new Option(field.name, field.name);
+                compareSelect.add(option);
 
                 // Definir ID como padrão no campo de comparação
                 if (field.name.toLowerCase().includes('id')) {
                     compareSelect.value = field.name;
                 }
             });
+
+            // Povoar todos os selects de campo existentes
+            populateAllFieldSelects();
+        }
+
+        function populateAllFieldSelects() {
+            const fieldSelects = document.querySelectorAll('.field-select');
+
+            fieldSelects.forEach(select => {
+                const currentValue = select.value;
+                select.innerHTML = '<option value="">Selecione um campo...</option>';
+
+                tableFields.forEach(field => {
+                    const option = new Option(field.name, field.name);
+                    select.add(option);
+                });
+
+                // Restaurar valor selecionado se ainda existir
+                if (currentValue && tableFields.find(f => f.name === currentValue)) {
+                    select.value = currentValue;
+                }
+            });
         }
 
         async function searchRecords(database) {
-            const fieldSelect = document.getElementById(`${database}-field-select`);
-            const operatorSelect = document.getElementById(`${database}-operator-select`);
-            const valueInput = document.getElementById(`${database}-value-input`);
             const loading = document.getElementById(`${database}-loading`);
             const results = document.getElementById(`${database}-results`);
             const count = document.getElementById(`${database}-count`);
 
-            if (!fieldSelect.value) {
-                alert('Selecione um campo para filtrar');
+            // Coletar todos os filtros ativos
+            const filters = collectActiveFilters(database);
+
+            if (filters.length === 0) {
+                alert('Configure pelo menos um filtro para buscar');
                 return;
             }
 
-            const filter = {
-                field: fieldSelect.value,
-                operator: operatorSelect.value,
-                value: valueInput.value
-            };
-
-            // Validar valor para operadores que precisam
-            if (!['IS NULL', 'IS NOT NULL'].includes(filter.operator) && !filter.value.trim()) {
-                alert('Digite um valor para o filtro');
-                return;
+            // Validar filtros
+            for (let i = 0; i < filters.length; i++) {
+                const filter = filters[i];
+                if (!filter.field) {
+                    alert(`Selecione um campo para o filtro ${i + 1}`);
+                    return;
+                }
+                if (!['IS NULL', 'IS NOT NULL'].includes(filter.operator) && !filter.value.trim()) {
+                    alert(`Digite um valor para o filtro ${i + 1}`);
+                    return;
+                }
             }
 
             loading.style.display = 'block';
             results.innerHTML = '';
 
+            // Mostrar resumo dos filtros
+            updateFilterSummary(database, filters);
+
             try {
                 const result = await ipcRenderer.invoke('search-table-records', {
                     tableName: currentTableName,
                     database: database,
-                    filter: filter
+                    filters: filters // Múltiplos filtros
                 });
 
                 if (result.success) {
@@ -366,6 +439,36 @@
             } finally {
                 loading.style.display = 'none';
             }
+        }
+
+        function collectActiveFilters(database) {
+            const container = document.getElementById(`${database}-filters-container`);
+            const filterRows = container.querySelectorAll('.filter-row');
+            const filters = [];
+
+            filterRows.forEach((row, index) => {
+                const fieldSelect = row.querySelector('.field-select');
+                const operatorSelect = row.querySelector('.operator-select');
+                const valueInput = row.querySelector('.value-input');
+                const logicSelect = row.querySelector('.logic-select');
+
+                if (fieldSelect && fieldSelect.value) {
+                    filters.push({
+                        field: fieldSelect.value,
+                        operator: operatorSelect.value,
+                        value: valueInput.value,
+                        logic: index < filterRows.length - 1 ? logicSelect.value : null // Último filtro não precisa de lógica
+                    });
+                }
+            });
+
+            return filters;
+        }
+
+        function updateFilterSummary(database, filters) {
+            // Esta função poderia mostrar um resumo dos filtros aplicados
+            // Por enquanto vamos só fazer log
+            console.log(`Filtros para ${database}:`, filters);
         }
 
         function displayRecords(database, records) {
@@ -405,19 +508,164 @@
             container.innerHTML = html;
         }
 
-        function clearFilter(database) {
-            document.getElementById(`${database}-field-select`).value = '';
-            document.getElementById(`${database}-operator-select`).value = '=';
-            document.getElementById(`${database}-value-input`).value = '';
+        function addFilter(database) {
+            const container = document.getElementById(`${database}-filters-container`);
+            const filterRows = container.querySelectorAll('.filter-row');
+            const newIndex = filterRows.length;
+
+            const newFilterRow = document.createElement('div');
+            newFilterRow.className = 'filter-row';
+            newFilterRow.setAttribute('data-filter-index', newIndex);
+
+            newFilterRow.innerHTML = `
+                <div class="logic-indicator">${newIndex > 0 ? 'E/OU' : ''}</div>
+                <div class="filter-fields">
+                    <div class="form-group">
+                        <label>Campo:</label>
+                        <select class="field-select" data-database="${database}" data-index="${newIndex}">
+                            <option value="">Selecione um campo...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Operador:</label>
+                        <select class="operator-select" data-index="${newIndex}">
+                            <option value="=">=</option>
+                            <option value="!=">!=</option>
+                            <option value=">">&gt;</option>
+                            <option value="<">&lt;</option>
+                            <option value=">=">&gt;=</option>
+                            <option value="<=">&lt;=</option>
+                            <option value="LIKE">LIKE</option>
+                            <option value="NOT LIKE">NOT LIKE</option>
+                            <option value="IS NULL">IS NULL</option>
+                            <option value="IS NOT NULL">IS NOT NULL</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Valor:</label>
+                        <input type="text" class="value-input" data-index="${newIndex}" placeholder="Digite o valor...">
+                    </div>
+                    <div class="form-group">
+                        <label>Lógica:</label>
+                        <select class="logic-select" data-index="${newIndex}">
+                            <option value="AND">E (AND)</option>
+                            <option value="OR">OU (OR)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn-remove-filter" onclick="removeFilter('${database}', ${newIndex})" title="Remover filtro">
+                        <i class="icon">❌</i>
+                    </button>
+                </div>
+            `;
+
+            container.appendChild(newFilterRow);
+
+            // Povoar o novo select com os campos
+            populateAllFieldSelects();
+
+            // Habilitar botões de remoção se houver mais de um filtro
+            updateRemoveButtons(database);
+        }
+
+        function removeFilter(database, index) {
+            const container = document.getElementById(`${database}-filters-container`);
+            const filterRows = container.querySelectorAll('.filter-row');
+
+            if (filterRows.length <= 1) {
+                alert('Deve haver pelo menos um filtro');
+                return;
+            }
+
+            // Remover o filtro específico
+            const filterToRemove = container.querySelector(`[data-filter-index="${index}"]`);
+            if (filterToRemove) {
+                filterToRemove.remove();
+            }
+
+            // Reindexar os filtros restantes
+            reindexFilters(database);
+
+            // Atualizar botões de remoção
+            updateRemoveButtons(database);
+        }
+
+        function reindexFilters(database) {
+            const container = document.getElementById(`${database}-filters-container`);
+            const filterRows = container.querySelectorAll('.filter-row');
+
+            filterRows.forEach((row, newIndex) => {
+                row.setAttribute('data-filter-index', newIndex);
+
+                // Atualizar data-index dos elementos
+                const fieldSelect = row.querySelector('.field-select');
+                const operatorSelect = row.querySelector('.operator-select');
+                const valueInput = row.querySelector('.value-input');
+                const logicSelect = row.querySelector('.logic-select');
+                const removeBtn = row.querySelector('.btn-remove-filter');
+
+                if (fieldSelect) fieldSelect.setAttribute('data-index', newIndex);
+                if (operatorSelect) operatorSelect.setAttribute('data-index', newIndex);
+                if (valueInput) valueInput.setAttribute('data-index', newIndex);
+                if (logicSelect) logicSelect.setAttribute('data-index', newIndex);
+                if (removeBtn) removeBtn.setAttribute('onclick', `removeFilter('${database}', ${newIndex})`);
+
+                // Atualizar indicador lógico
+                const logicIndicator = row.querySelector('.logic-indicator');
+                if (logicIndicator) {
+                    logicIndicator.textContent = newIndex > 0 ? 'E/OU' : '';
+                    logicIndicator.style.display = newIndex > 0 ? 'block' : 'none';
+                }
+            });
+        }
+
+        function updateRemoveButtons(database) {
+            const container = document.getElementById(`${database}-filters-container`);
+            const removeButtons = container.querySelectorAll('.btn-remove-filter');
+            const hasMultipleFilters = removeButtons.length > 1;
+
+            removeButtons.forEach(btn => {
+                btn.disabled = !hasMultipleFilters;
+            });
+        }
+
+        function clearAllFilters(database) {
+            const container = document.getElementById(`${database}-filters-container`);
+
+            // Remover todos os filtros exceto o primeiro
+            const filterRows = container.querySelectorAll('.filter-row');
+            for (let i = filterRows.length - 1; i > 0; i--) {
+                filterRows[i].remove();
+            }
+
+            // Limpar o primeiro filtro
+            const firstRow = container.querySelector('.filter-row');
+            if (firstRow) {
+                const fieldSelect = firstRow.querySelector('.field-select');
+                const operatorSelect = firstRow.querySelector('.operator-select');
+                const valueInput = firstRow.querySelector('.value-input');
+                const logicSelect = firstRow.querySelector('.logic-select');
+
+                if (fieldSelect) fieldSelect.value = '';
+                if (operatorSelect) operatorSelect.value = '=';
+                if (valueInput) valueInput.value = '';
+                if (logicSelect) logicSelect.value = 'AND';
+            }
+
+            // Limpar resultados
             document.getElementById(`${database}-results`).innerHTML = '<p class="no-data-message">Use os filtros acima para buscar registros</p>';
             document.getElementById(`${database}-count`).textContent = '0 registros';
 
+            // Limpar dados
             if (database === 'db1') {
                 db1Data = [];
             } else {
                 db2Data = [];
             }
 
+            // Atualizar botões
+            updateRemoveButtons(database);
             updateCompareButton();
         }
 

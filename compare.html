@@ -213,7 +213,7 @@
                 const statusIcon = getStatusIcon(item);
 
                 html += `
-                    <div class="table-row ${rowClass}">
+                    <div class="table-row ${rowClass} clickable-row" onclick="openRecordsComparison('${item.tableName}')">
                         <div class="table-name">
                             <i class="table-icon">📄</i>
                             ${item.tableName}
@@ -227,6 +227,7 @@
                         <div class="table-status">
                             <span class="status-icon">${statusIcon}</span>
                             <span class="status-text">${statusText}</span>
+                            <span class="click-hint">👆 Clique para ver registros</span>
                         </div>
                     </div>
                 `;
@@ -302,7 +303,7 @@
                 const statusIcon = getStatusIcon(item);
 
                 html += `
-                    <div class="table-row ${rowClass}">
+                    <div class="table-row ${rowClass} clickable-row" onclick="openRecordsComparison('${item.tableName}')">
                         <div class="table-name">
                             <i class="table-icon">📄</i>
                             ${item.tableName}
@@ -316,6 +317,7 @@
                         <div class="table-status">
                             <span class="status-icon">${statusIcon}</span>
                             <span class="status-text">${statusText}</span>
+                            <span class="click-hint">👆 Clique para ver registros</span>
                         </div>
                     </div>
                 `;
@@ -369,6 +371,16 @@
                 <p>Erro ao carregar dados</p>
                 <p>${message}</p>
             `;
+        }
+
+        // Abrir comparação de registros
+        async function openRecordsComparison(tableName) {
+            try {
+                await ipcRenderer.invoke('open-records-compare-window', tableName);
+            } catch (error) {
+                console.error('Erro ao abrir comparação de registros:', error);
+                alert('Erro ao abrir comparação de registros: ' + error.message);
+            }
         }
     </script>
 </body>

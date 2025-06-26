@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparação de Registros - Database Sync</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <i class="icon">🔍</i>
+                Comparação de Registros
+            </h1>
+            <p class="subtitle" id="table-subtitle">Tabela: <span id="current-table-name">-</span></p>
+        </header>
+
+        <main>
+            <!-- Filtros -->
+            <div class="filters-section">
+                <div class="filter-panel">
+                    <h3>🔧 Filtros de Busca</h3>
+                    <div class="filter-columns">
+                        <!-- Filtros Banco 1 -->
+                        <div class="filter-column">
+                            <h4 id="db1-filter-title">Banco 1</h4>
+                            <div class="filter-form">
+                                <div class="form-group">
+                                    <label>Campo:</label>
+                                    <select id="db1-field-select">
+                                        <option value="">Carregando campos...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Operador:</label>
+                                    <select id="db1-operator-select">
+                                        <option value="=">=</option>
+                                        <option value="!=">!=</option>
+                                        <option value=">">&gt;</option>
+                                        <option value="<">&lt;</option>
+                                        <option value=">=">&gt;=</option>
+                                        <option value="<=">&lt;=</option>
+                                        <option value="LIKE">LIKE</option>
+                                        <option value="NOT LIKE">NOT LIKE</option>
+                                        <option value="IS NULL">IS NULL</option>
+                                        <option value="IS NOT NULL">IS NOT NULL</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Valor:</label>
+                                    <input type="text" id="db1-value-input" placeholder="Digite o valor...">
+                                </div>
+                                <button class="btn btn-primary" onclick="searchRecords('db1')">
+                                    <i class="icon">🔍</i>
+                                    Buscar
+                                </button>
+                                <button class="btn btn-secondary" onclick="clearFilter('db1')">
+                                    <i class="icon">🗑️</i>
+                                    Limpar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Filtros Banco 2 -->
+                        <div class="filter-column">
+                            <h4 id="db2-filter-title">Banco 2</h4>
+                            <div class="filter-form">
+                                <div class="form-group">
+                                    <label>Campo:</label>
+                                    <select id="db2-field-select">
+                                        <option value="">Carregando campos...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Operador:</label>
+                                    <select id="db2-operator-select">
+                                        <option value="=">=</option>
+                                        <option value="!=">!=</option>
+                                        <option value=">">&gt;</option>
+                                        <option value="<">&lt;</option>
+                                        <option value=">=">&gt;=</option>
+                                        <option value="<=">&lt;=</option>
+                                        <option value="LIKE">LIKE</option>
+                                        <option value="NOT LIKE">NOT LIKE</option>
+                                        <option value="IS NULL">IS NULL</option>
+                                        <option value="IS NOT NULL">IS NOT NULL</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Valor:</label>
+                                    <input type="text" id="db2-value-input" placeholder="Digite o valor...">
+                                </div>
+                                <button class="btn btn-primary" onclick="searchRecords('db2')">
+                                    <i class="icon">🔍</i>
+                                    Buscar
+                                </button>
+                                <button class="btn btn-secondary" onclick="clearFilter('db2')">
+                                    <i class="icon">🗑️</i>
+                                    Limpar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comparação -->
+                <div class="comparison-controls">
+                    <h3>🔄 Comparar Registros</h3>
+                    <div class="comparison-form">
+                        <div class="form-group">
+                            <label>Comparar por campo:</label>
+                            <select id="compare-field-select">
+                                <option value="">Selecione um campo...</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-success" onclick="compareRecords()" id="compare-btn" disabled>
+                            <i class="icon">⚖️</i>
+                            Comparar Registros
+                        </button>
+                        <div class="comparison-stats" id="comparison-stats" style="display: none;">
+                            <span class="stat-item">
+                                <strong id="total-db1">0</strong> no BD1
+                            </span>
+                            <span class="stat-item">
+                                <strong id="total-db2">0</strong> no BD2
+                            </span>
+                            <span class="stat-item match">
+                                <strong id="total-match">0</strong> iguais
+                            </span>
+                            <span class="stat-item diff">
+                                <strong id="total-diff">0</strong> diferentes
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resultados -->
+            <div class="results-section">
+                <div class="results-columns">
+                    <!-- Resultados Banco 1 -->
+                    <div class="result-column">
+                        <div class="result-header">
+                            <h3 id="db1-results-title">Banco 1</h3>
+                            <div class="result-count">
+                                <span id="db1-count">0 registros</span>
+                            </div>
+                        </div>
+                        <div class="result-content">
+                            <div id="db1-loading" class="loading-small" style="display: none;">
+                                <div class="loading-spinner-small"></div>
+                                <p>Carregando registros...</p>
+                            </div>
+                            <div id="db1-results" class="records-table">
+                                <p class="no-data-message">Use os filtros acima para buscar registros</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Resultados Banco 2 -->
+                    <div class="result-column">
+                        <div class="result-header">
+                            <h3 id="db2-results-title">Banco 2</h3>
+                            <div class="result-count">
+                                <span id="db2-count">0 registros</span>
+                            </div>
+                        </div>
+                        <div class="result-content">
+                            <div id="db2-loading" class="loading-small" style="display: none;">
+                                <div class="loading-spinner-small"></div>
+                                <p>Carregando registros...</p>
+                            </div>
+                            <div id="db2-results" class="records-table">
+                                <p class="no-data-message">Use os filtros acima para buscar registros</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comparação de Registros -->
+                <div id="comparison-results" class="comparison-results" style="display: none;">
+                    <h3>📊 Resultado da Comparação</h3>
+                    <div class="comparison-tabs">
+                        <button class="tab-btn active" onclick="showComparisonTab('all')">Todos</button>
+                        <button class="tab-btn" onclick="showComparisonTab('match')">Iguais</button>
+                        <button class="tab-btn" onclick="showComparisonTab('diff')">Diferentes</button>
+                        <button class="tab-btn" onclick="showComparisonTab('only-db1')">Só no BD1</button>
+                        <button class="tab-btn" onclick="showComparisonTab('only-db2')">Só no BD2</button>
+                    </div>
+                    <div id="comparison-table" class="comparison-table-detailed">
+                        <!-- Resultados da comparação -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        let currentTableName = '';
+        let db1Data = [];
+        let db2Data = [];
+        let tableFields = [];
+        let comparisonResult = [];
+        let currentComparisonTab = 'all';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initializePage();
+        });
+
+        async function initializePage() {
+            // Obter dados da tabela selecionada
+            const urlParams = new URLSearchParams(window.location.search);
+            currentTableName = urlParams.get('table');
+
+            if (currentTableName) {
+                document.getElementById('current-table-name').textContent = currentTableName;
+                await loadTableFields();
+                await loadDatabaseNames();
+            }
+        }
+
+        async function loadDatabaseNames() {
+            try {
+                const result = await ipcRenderer.invoke('get-database-names');
+                if (result.success) {
+                    document.getElementById('db1-filter-title').textContent = result.db1Name;
+                    document.getElementById('db2-filter-title').textContent = result.db2Name;
+                    document.getElementById('db1-results-title').textContent = result.db1Name;
+                    document.getElementById('db2-results-title').textContent = result.db2Name;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar nomes dos bancos:', error);
+            }
+        }
+
+        async function loadTableFields() {
+            try {
+                const result = await ipcRenderer.invoke('get-table-fields', currentTableName);
+                if (result.success) {
+                    tableFields = result.fields;
+                    populateFieldSelects();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar campos da tabela:', error);
+            }
+        }
+
+        function populateFieldSelects() {
+            const db1Select = document.getElementById('db1-field-select');
+            const db2Select = document.getElementById('db2-field-select');
+            const compareSelect = document.getElementById('compare-field-select');
+
+            // Limpar selects
+            db1Select.innerHTML = '<option value="">Selecione um campo...</option>';
+            db2Select.innerHTML = '<option value="">Selecione um campo...</option>';
+            compareSelect.innerHTML = '<option value="">Selecione um campo...</option>';
+
+            // Adicionar campos
+            tableFields.forEach(field => {
+                const option1 = new Option(field.name, field.name);
+                const option2 = new Option(field.name, field.name);
+                const option3 = new Option(field.name, field.name);
+
+                db1Select.add(option1);
+                db2Select.add(option2);
+                compareSelect.add(option3);
+
+                // Definir ID como padrão no campo de comparação
+                if (field.name.toLowerCase().includes('id')) {
+                    compareSelect.value = field.name;
+                }
+            });
+        }
+
+        async function searchRecords(database) {
+            const fieldSelect = document.getElementById(`${database}-field-select`);
+            const operatorSelect = document.getElementById(`${database}-operator-select`);
+            const valueInput = document.getElementById(`${database}-value-input`);
+            const loading = document.getElementById(`${database}-loading`);
+            const results = document.getElementById(`${database}-results`);
+            const count = document.getElementById(`${database}-count`);
+
+            if (!fieldSelect.value) {
+                alert('Selecione um campo para filtrar');
+                return;
+            }
+
+            const filter = {
+                field: fieldSelect.value,
+                operator: operatorSelect.value,
+                value: valueInput.value
+            };
+
+            // Validar valor para operadores que precisam
+            if (!['IS NULL', 'IS NOT NULL'].includes(filter.operator) && !filter.value.trim()) {
+                alert('Digite um valor para o filtro');
+                return;
+            }
+
+            loading.style.display = 'block';
+            results.innerHTML = '';
+
+            try {
+                const result = await ipcRenderer.invoke('search-table-records', {
+                    tableName: currentTableName,
+                    database: database,
+                    filter: filter
+                });
+
+                if (result.success) {
+                    if (database === 'db1') {
+                        db1Data = result.records;
+                    } else {
+                        db2Data = result.records;
+                    }
+
+                    displayRecords(database, result.records);
+                    count.textContent = `${result.records.length} registros`;
+
+                    // Habilitar botão de comparação se ambos os bancos têm dados
+                    updateCompareButton();
+                } else {
+                    showError(results, result.message);
+                }
+            } catch (error) {
+                showError(results, 'Erro ao buscar registros: ' + error.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function displayRecords(database, records) {
+            const container = document.getElementById(`${database}-results`);
+
+            if (records.length === 0) {
+                container.innerHTML = '<p class="no-data-message">Nenhum registro encontrado</p>';
+                return;
+            }
+
+            // Criar tabela
+            let html = '<div class="records-table-container">';
+            html += '<table class="records-table">';
+
+            // Cabeçalho
+            html += '<thead><tr>';
+            Object.keys(records[0]).forEach(key => {
+                html += `<th>${key}</th>`;
+            });
+            html += '</tr></thead>';
+
+            // Linhas
+            html += '<tbody>';
+            records.forEach(record => {
+                html += '<tr>';
+                Object.values(record).forEach(value => {
+                    html += `<td>${value !== null ? value : '<span class="null-value">NULL</span>'}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+
+            container.innerHTML = html;
+        }
+
+        function clearFilter(database) {
+            document.getElementById(`${database}-field-select`).value = '';
+            document.getElementById(`${database}-operator-select`).value = '=';
+            document.getElementById(`${database}-value-input`).value = '';
+            document.getElementById(`${database}-results`).innerHTML = '<p class="no-data-message">Use os filtros acima para buscar registros</p>';
+            document.getElementById(`${database}-count`).textContent = '0 registros';
+
+            if (database === 'db1') {
+                db1Data = [];
+            } else {
+                db2Data = [];
+            }
+
+            updateCompareButton();
+        }
+
+        function updateCompareButton() {
+            const compareBtn = document.getElementById('compare-btn');
+            const compareField = document.getElementById('compare-field-select');
+
+            if (db1Data.length > 0 && db2Data.length > 0 && compareField.value) {
+                compareBtn.disabled = false;
+            } else {
+                compareBtn.disabled = true;
+            }
+        }
+
+        async function compareRecords() {
+            const compareField = document.getElementById('compare-field-select').value;
+
+            if (!compareField) {
+                alert('Selecione um campo para comparação');
+                return;
+            }
+
+            try {
+                const result = await ipcRenderer.invoke('compare-records', {
+                    db1Records: db1Data,
+                    db2Records: db2Data,
+                    compareField: compareField
+                });
+
+                if (result.success) {
+                    comparisonResult = result.comparison;
+                    displayComparisonStats(result.stats);
+                    displayComparisonResults();
+                    document.getElementById('comparison-results').style.display = 'block';
+                }
+            } catch (error) {
+                alert('Erro ao comparar registros: ' + error.message);
+            }
+        }
+
+        function displayComparisonStats(stats) {
+            document.getElementById('total-db1').textContent = stats.totalDb1;
+            document.getElementById('total-db2').textContent = stats.totalDb2;
+            document.getElementById('total-match').textContent = stats.totalMatch;
+            document.getElementById('total-diff').textContent = stats.totalDiff;
+            document.getElementById('comparison-stats').style.display = 'block';
+        }
+
+        function showComparisonTab(tab) {
+            currentComparisonTab = tab;
+
+            // Atualizar botões
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            displayComparisonResults();
+        }
+
+        function displayComparisonResults() {
+            const container = document.getElementById('comparison-table');
+            let filteredResults = comparisonResult;
+
+            // Filtrar baseado na aba ativa
+            switch (currentComparisonTab) {
+                case 'match':
+                    filteredResults = comparisonResult.filter(r => r.status === 'match');
+                    break;
+                case 'diff':
+                    filteredResults = comparisonResult.filter(r => r.status === 'different');
+                    break;
+                case 'only-db1':
+                    filteredResults = comparisonResult.filter(r => r.status === 'only-db1');
+                    break;
+                case 'only-db2':
+                    filteredResults = comparisonResult.filter(r => r.status === 'only-db2');
+                    break;
+            }
+
+            if (filteredResults.length === 0) {
+                container.innerHTML = '<p class="no-data-message">Nenhum registro para esta categoria</p>';
+                return;
+            }
+
+            // Criar tabela de comparação
+            let html = '<div class="comparison-table-container">';
+            html += '<table class="comparison-table">';
+            html += '<thead><tr>';
+            html += '<th>Status</th>';
+            html += '<th>Valor Comparação</th>';
+            html += '<th>Registro BD1</th>';
+            html += '<th>Registro BD2</th>';
+            html += '</tr></thead><tbody>';
+
+            filteredResults.forEach(result => {
+                const statusClass = result.status.replace('-', '_');
+                const statusText = {
+                    'match': '✅ Igual',
+                    'different': '⚠️ Diferente',
+                    'only-db1': '❌ Só BD1',
+                    'only-db2': '❌ Só BD2'
+                }[result.status];
+
+                html += `<tr class="comparison-row ${statusClass}">`;
+                html += `<td><span class="status-badge ${statusClass}">${statusText}</span></td>`;
+                html += `<td><strong>${result.compareValue}</strong></td>`;
+                html += `<td>${result.db1Record ? JSON.stringify(result.db1Record) : '-'}</td>`;
+                html += `<td>${result.db2Record ? JSON.stringify(result.db2Record) : '-'}</td>`;
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        function showError(container, message) {
+            container.innerHTML = `<p class="error-message">❌ ${message}</p>`;
+        }
+
+        // Atualizar botão de comparação quando campo for selecionado
+        document.getElementById('compare-field-select').addEventListener('change', updateCompareButton);
+    </script>
+</body>
+
+</html>

@@ -408,6 +408,218 @@ ipcMain.handle('get-app-setting', async (event, key, defaultValue = null) => {
     }
 });
 
+// Novos handlers para comparação de registros
+ipcMain.handle('open-records-compare-window', async (event, tableName) => {
+    console.log('🔍 IPC: Abrindo janela de comparação de registros...', tableName);
+    try {
+        const recordsWindow = new BrowserWindow({
+            width: 1400,
+            height: 900,
+            webPreferences: {
+                nodeIntegration: true,
+                contextIsolation: false
+            }
+        });
+
+        recordsWindow.loadURL(`file://${__dirname}/records-compare.html?table=${encodeURIComponent(tableName)}`);
+        recordsWindow.show();
+
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Erro ao abrir janela de comparação de registros:', error);
+        return { success: false, message: error.message };
+    }
+});
+
+// Obter nomes dos bancos de dados
+ipcMain.handle('get-database-names', async () => {
+    try {
+        const config1 = await dbManager.getDbConfig('database1');
+        const config2 = await dbManager.getDbConfig('database2');
+
+        if (config1 && config2) {
+            return {
+                success: true,
+                db1Name: config1.connectionName || config1.database,
+                db2Name: config2.connectionName || config2.database
+            };
+        }
+        return { success: false, message: 'Configurações não encontradas' };
+    } catch (error) {
+        return { success: false, message: error.message };
+    }
+});
+
+// Obter campos de uma tabela
+ipcMain.handle('get-table-fields', async (event, tableName) => {
+    try {
+        const dbConfig1 = await dbManager.getDbConfig('database1');
+        if (!dbConfig1) {
+            return { success: false, message: 'Configuração do banco 1 não encontrada' };
+        }
+
+        // Remover connectionName antes de passar para MySQL
+        const mysqlConfig1 = {
+            host: dbConfig1.host,
+            port: dbConfig1.port,
+            user: dbConfig1.user,
+            password: dbConfig1.password,
+            database: dbConfig1.database
+        };
+
+        const conn1 = await mysql.createConnection(mysqlConfig1);
+
+        // Obter estrutura da tabela
+        const [fields] = await conn1.execute(`DESCRIBE \`${tableName}\``);
+
+        await conn1.end();
+
+        return {
+            success: true,
+            fields: fields.map(field => ({
+                name: field.Field,
+                type: field.Type,
+                null: field.Null,
+                key: field.Key,
+                default: field.Default
+            }))
+        };
+    } catch (error) {
+        console.error('❌ Erro ao obter campos da tabela:', error);
+        return { success: false, message: error.message };
+    }
+});
+
+// Buscar registros com filtro
+ipcMain.handle('search-table-records', async (event, { tableName, database, filter }) => {
+    try {
+        const dbConfig1 = await dbManager.getDbConfig('database1');
+        const dbConfig2 = await dbManager.getDbConfig('database2');
+
+        if (!dbConfig1 || !dbConfig2) {
+            return { success: false, message: 'Configure as duas conexões de banco de dados' };
+        }
+
+        const dbConfig = database === 'db1' ? dbConfig1 : dbConfig2;
+
+        // Remover connectionName antes de passar para MySQL
+        const mysqlConfig = {
+            host: dbConfig.host,
+            port: dbConfig.port,
+            user: dbConfig.user,
+            password: dbConfig.password,
+            database: dbConfig.database
+        };
+
+        const conn = await mysql.createConnection(mysqlConfig);
+
+        let query = `SELECT * FROM \`${tableName}\``;
+        let params = [];
+
+        // Construir WHERE clause
+        if (filter.field) {
+            if (['IS NULL', 'IS NOT NULL'].includes(filter.operator)) {
+                query += ` WHERE \`${filter.field}\` ${filter.operator}`;
+            } else {
+                query += ` WHERE \`${filter.field}\` ${filter.operator} ?`;
+                params.push(filter.value);
+            }
+        }
+
+        // Limitar resultados para performance
+        query += ' LIMIT 1000';
+
+        const [records] = await conn.execute(query, params);
+
+        await conn.end();
+
+        return {
+            success: true,
+            records: records
+        };
+    } catch (error) {
+        console.error('❌ Erro ao buscar registros:', error);
+        return { success: false, message: error.message };
+    }
+});
+
+// Comparar registros
+ipcMain.handle('compare-records', async (event, { db1Records, db2Records, compareField }) => {
+    try {
+        const comparison = [];
+        const db1Map = new Map();
+        const db2Map = new Map();
+
+        // Indexar registros do banco 1
+        db1Records.forEach(record => {
+            const key = record[compareField];
+            if (key !== null && key !== undefined) {
+                db1Map.set(String(key), record);
+            }
+        });
+
+        // Indexar registros do banco 2
+        db2Records.forEach(record => {
+            const key = record[compareField];
+            if (key !== null && key !== undefined) {
+                db2Map.set(String(key), record);
+            }
+        });
+
+        // Comparar registros
+        const allKeys = new Set([...db1Map.keys(), ...db2Map.keys()]);
+
+        allKeys.forEach(key => {
+            const record1 = db1Map.get(key);
+            const record2 = db2Map.get(key);
+
+            if (record1 && record2) {
+                // Verificar se são iguais (comparação simples)
+                const isEqual = JSON.stringify(record1) === JSON.stringify(record2);
+                comparison.push({
+                    compareValue: key,
+                    status: isEqual ? 'match' : 'different',
+                    db1Record: record1,
+                    db2Record: record2
+                });
+            } else if (record1) {
+                comparison.push({
+                    compareValue: key,
+                    status: 'only-db1',
+                    db1Record: record1,
+                    db2Record: null
+                });
+            } else if (record2) {
+                comparison.push({
+                    compareValue: key,
+                    status: 'only-db2',
+                    db1Record: null,
+                    db2Record: record2
+                });
+            }
+        });
+
+        // Calcular estatísticas
+        const stats = {
+            totalDb1: db1Records.length,
+            totalDb2: db2Records.length,
+            totalMatch: comparison.filter(c => c.status === 'match').length,
+            totalDiff: comparison.filter(c => c.status === 'different').length +
+                comparison.filter(c => c.status === 'only-db1').length +
+                comparison.filter(c => c.status === 'only-db2').length
+        };
+
+        return {
+            success: true,
+            comparison: comparison,
+            stats: stats
+        };
+    } catch (error) {
+        console.error('❌ Erro ao comparar registros:', error);
+        return { success: false, message: error.message };
+    }
+});
+
 // Inicializar banco de dados e aplicação
 app.whenReady().then(async () => {
     try {

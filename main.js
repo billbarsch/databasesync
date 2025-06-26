@@ -196,7 +196,7 @@ ipcMain.handle('get-config', async () => {
     }
 });
 
-ipcMain.handle('get-tables-comparison', async () => {
+ipcMain.handle('get-tables-comparison', async (event, forceRefresh = false) => {
     try {
         const dbConfig1 = await dbManager.getDbConfig('database1');
         const dbConfig2 = await dbManager.getDbConfig('database2');
@@ -204,6 +204,27 @@ ipcMain.handle('get-tables-comparison', async () => {
         if (!dbConfig1 || !dbConfig2) {
             return { success: false, message: 'Configurações de banco não encontradas' };
         }
+
+        // Verificar cache se não for refresh forçado
+        if (!forceRefresh) {
+            const cachedResult = await dbManager.getTableComparisonCache(dbConfig1, dbConfig2);
+            if (cachedResult) {
+                console.log('📁 Usando dados em cache da comparação de tabelas');
+                return {
+                    success: true,
+                    data: cachedResult.comparisonData,
+                    db1Name: dbConfig1.database,
+                    db2Name: dbConfig2.database,
+                    db1DisplayName: cachedResult.db1DisplayName || dbConfig1.connectionName || dbConfig1.database,
+                    db2DisplayName: cachedResult.db2DisplayName || dbConfig2.connectionName || dbConfig2.database,
+                    totalTables: cachedResult.totalTables,
+                    fromCache: true,
+                    cachedAt: cachedResult.createdAt
+                };
+            }
+        }
+
+        console.log('🔄 Executando nova comparação de tabelas...');
 
         // Remover connectionName antes de passar para MySQL
         const mysqlConfig1 = {
@@ -328,10 +349,21 @@ ipcMain.handle('get-tables-comparison', async () => {
             dbConfig2.connectionName || dbConfig2.database
         );
 
+        // Salvar no cache
+        await dbManager.saveTableComparisonCache(
+            dbConfig1,
+            dbConfig2,
+            comparison,
+            dbConfig1.connectionName || dbConfig1.database,
+            dbConfig2.connectionName || dbConfig2.database
+        );
+
         // Enviar progresso final
         if (compareWindow && !compareWindow.isDestroyed()) {
             compareWindow.webContents.send('comparison-complete');
         }
+
+        console.log('💾 Comparação salva no cache');
 
         return {
             success: true,
@@ -340,7 +372,8 @@ ipcMain.handle('get-tables-comparison', async () => {
             db2Name: dbConfig2.database,
             db1DisplayName: dbConfig1.connectionName || dbConfig1.database,
             db2DisplayName: dbConfig2.connectionName || dbConfig2.database,
-            totalTables: totalTables
+            totalTables: totalTables,
+            fromCache: false
         };
     } catch (error) {
         console.error('Erro na comparação:', error);
@@ -710,6 +743,18 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
         };
     } catch (error) {
         console.error('❌ Erro ao enviar registros:', error);
+        return { success: false, message: error.message };
+    }
+});
+
+// Limpar cache de comparação de tabelas
+ipcMain.handle('clear-table-comparison-cache', async () => {
+    try {
+        await dbManager.clearAllTableComparisonCache();
+        console.log('🗑️ Cache de comparação de tabelas limpo');
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Erro ao limpar cache:', error);
         return { success: false, message: error.message };
     }
 });

@@ -88,6 +88,20 @@
                     </div>
                 </div>
 
+                <div id="cache-info" class="cache-info" style="display: none;">
+                    <div class="cache-badge">
+                        <i class="icon">📁</i>
+                        <span>Dados em cache</span>
+                    </div>
+                    <div class="cache-details">
+                        <span>Última comparação em: <strong id="cache-date">-</strong></span>
+                        <button class="btn-refresh-cache" onclick="forceRefreshComparison()">
+                            <i class="icon">🔄</i>
+                            Atualizar dados
+                        </button>
+                    </div>
+                </div>
+
                 <div id="comparison-table" class="comparison-table">
                     <!-- Tabela de comparação será inserida aqui -->
                 </div>
@@ -160,16 +174,22 @@
             }
         }
 
-        async function loadComparison() {
+        async function loadComparison(forceRefresh = false) {
             showLoading(true);
+            hideCacheInfo();
 
             try {
-                const result = await ipcRenderer.invoke('get-tables-comparison');
+                const result = await ipcRenderer.invoke('get-tables-comparison', forceRefresh);
 
                 if (result.success) {
                     comparisonData = result.data;
                     document.getElementById('db1-name').textContent = result.db1DisplayName || result.db1Name;
                     document.getElementById('db2-name').textContent = result.db2DisplayName || result.db2Name;
+
+                    // Mostrar indicador de cache se os dados vieram do cache
+                    if (result.fromCache) {
+                        showCacheInfo(result.cachedAt);
+                    }
 
                     displayComparison();
                     updateSummary();
@@ -180,6 +200,31 @@
             } catch (error) {
                 showError('Erro ao carregar comparação: ' + error.message);
             }
+        }
+
+        function showCacheInfo(cachedAt) {
+            const cacheInfo = document.getElementById('cache-info');
+            const cacheDate = document.getElementById('cache-date');
+
+            if (cachedAt) {
+                const date = new Date(cachedAt);
+                const formattedDate = date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                cacheDate.textContent = formattedDate;
+            }
+
+            cacheInfo.style.display = 'flex';
+        }
+
+        function hideCacheInfo() {
+            const cacheInfo = document.getElementById('cache-info');
+            cacheInfo.style.display = 'none';
+        }
+
+        function forceRefreshComparison() {
+            loadComparison(true);
         }
 
         function displayComparison() {
@@ -355,7 +400,7 @@
         }
 
         function refreshComparison() {
-            loadComparison();
+            loadComparison(true); // Sempre forçar refresh no botão "Atualizar"
         }
 
         function showLoading(show) {

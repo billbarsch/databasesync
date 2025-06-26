@@ -423,6 +423,65 @@ header h1 {
     margin-bottom: 10px;
 }
 
+/* Cache info */
+.cache-info {
+    background: #e3f2fd;
+    border: 1px solid #90caf9;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.cache-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #1976d2;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 0.9em;
+    font-weight: 600;
+}
+
+.cache-details {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.cache-details span {
+    color: #1565c0;
+    font-size: 0.9em;
+}
+
+.btn-refresh-cache {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.3s ease;
+}
+
+.btn-refresh-cache:hover {
+    background: #45a049;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(76, 175, 80, 0.3);
+}
+
 .comparison-table {
     background: white;
     border-radius: 10px;
@@ -693,6 +752,18 @@ header h1 {
 
     .comparison-header {
         grid-template-columns: 1fr;
+    }
+
+    .cache-info {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+        gap: 10px;
+    }
+
+    .cache-details {
+        flex-direction: column;
+        gap: 10px;
     }
 
     .table-header,

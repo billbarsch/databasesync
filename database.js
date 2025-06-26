@@ -71,6 +71,18 @@ class DatabaseManager {
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`,
+
+            // Tabela para cache de comparação de tabelas
+            `CREATE TABLE IF NOT EXISTS table_comparison_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                db1_config_hash TEXT NOT NULL,
+                db2_config_hash TEXT NOT NULL,
+                comparison_data TEXT NOT NULL,
+                db1_display_name TEXT,
+                db2_display_name TEXT,
+                total_tables INTEGER NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )`
         ];
 
@@ -302,6 +314,80 @@ class DatabaseManager {
         }
 
         return defaultValue;
+    }
+
+    // Gerar hash para configuração de banco (para cache)
+    generateConfigHash(config) {
+        const configString = `${config.host}:${config.port}:${config.user}:${config.database}`;
+        return Buffer.from(configString).toString('base64');
+    }
+
+    // Salvar cache de comparação de tabelas
+    async saveTableComparisonCache(db1Config, db2Config, comparisonData, db1DisplayName, db2DisplayName) {
+        // Limpar cache anterior para as mesmas configurações
+        await this.clearTableComparisonCache(db1Config, db2Config);
+
+        const db1Hash = this.generateConfigHash(db1Config);
+        const db2Hash = this.generateConfigHash(db2Config);
+        const totalTables = comparisonData.length;
+
+        const sql = `INSERT INTO table_comparison_cache 
+                     (db1_config_hash, db2_config_hash, comparison_data, db1_display_name, db2_display_name, total_tables) 
+                     VALUES (?, ?, ?, ?, ?, ?)`;
+
+        const params = [
+            db1Hash,
+            db2Hash,
+            JSON.stringify(comparisonData),
+            db1DisplayName,
+            db2DisplayName,
+            totalTables
+        ];
+
+        return await this.run(sql, params);
+    }
+
+    // Buscar cache de comparação de tabelas
+    async getTableComparisonCache(db1Config, db2Config) {
+        const db1Hash = this.generateConfigHash(db1Config);
+        const db2Hash = this.generateConfigHash(db2Config);
+
+        const sql = `SELECT * FROM table_comparison_cache 
+                     WHERE db1_config_hash = ? AND db2_config_hash = ? 
+                     ORDER BY created_at DESC 
+                     LIMIT 1`;
+
+        const row = await this.get(sql, [db1Hash, db2Hash]);
+
+        if (row) {
+            return {
+                id: row.id,
+                comparisonData: JSON.parse(row.comparison_data),
+                db1DisplayName: row.db1_display_name,
+                db2DisplayName: row.db2_display_name,
+                totalTables: row.total_tables,
+                createdAt: row.created_at
+            };
+        }
+
+        return null;
+    }
+
+    // Limpar cache de comparação de tabelas para configurações específicas
+    async clearTableComparisonCache(db1Config, db2Config) {
+        const db1Hash = this.generateConfigHash(db1Config);
+        const db2Hash = this.generateConfigHash(db2Config);
+
+        const sql = `DELETE FROM table_comparison_cache 
+                     WHERE db1_config_hash = ? AND db2_config_hash = ?`;
+
+        return await this.run(sql, [db1Hash, db2Hash]);
+    }
+
+    // Limpar todo o cache de comparação (opcional)
+    async clearAllTableComparisonCache() {
+        const sql = `DELETE FROM table_comparison_cache`;
+        return await this.run(sql);
     }
 
     // Fechar conexão com o banco

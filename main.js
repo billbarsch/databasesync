@@ -620,6 +620,77 @@ ipcMain.handle('compare-records', async (event, { db1Records, db2Records, compar
     }
 });
 
+// Enviar registros para banco de dados
+ipcMain.handle('send-records-to-database', async (event, { tableName, targetDatabase, records }) => {
+    try {
+        const dbConfig1 = await dbManager.getDbConfig('database1');
+        const dbConfig2 = await dbManager.getDbConfig('database2');
+
+        if (!dbConfig1 || !dbConfig2) {
+            return { success: false, message: 'Configure as duas conexões de banco de dados' };
+        }
+
+        const dbConfig = targetDatabase === 'db1' ? dbConfig1 : dbConfig2;
+
+        // Remover connectionName antes de passar para MySQL
+        const mysqlConfig = {
+            host: dbConfig.host,
+            port: dbConfig.port,
+            user: dbConfig.user,
+            password: dbConfig.password,
+            database: dbConfig.database
+        };
+
+        const conn = await mysql.createConnection(mysqlConfig);
+        let insertedCount = 0;
+
+        for (const recordData of records) {
+            try {
+                // Extrair dados do registro baseado no status
+                let record;
+                if (recordData.status === 'only-db1') {
+                    record = recordData.db1Record;
+                } else if (recordData.status === 'only-db2') {
+                    record = recordData.db2Record;
+                } else if (recordData.status === 'different') {
+                    // Para registros diferentes, usar o registro do banco de origem oposto
+                    record = targetDatabase === 'db1' ? recordData.db2Record : recordData.db1Record;
+                } else {
+                    continue; // Pular registros iguais
+                }
+
+                if (!record) continue;
+
+                // Construir query de INSERT
+                const columns = Object.keys(record);
+                const values = Object.values(record);
+                const placeholders = columns.map(() => '?').join(', ');
+                const columnNames = columns.map(col => `\`${col}\``).join(', ');
+
+                const insertQuery = `INSERT INTO \`${tableName}\` (${columnNames}) VALUES (${placeholders}) 
+                                   ON DUPLICATE KEY UPDATE ${columns.map(col => `\`${col}\` = VALUES(\`${col}\`)`).join(', ')}`;
+
+                await conn.execute(insertQuery, values);
+                insertedCount++;
+            } catch (recordError) {
+                console.error('Erro ao inserir registro:', recordError);
+                // Continuar com próximo registro
+            }
+        }
+
+        await conn.end();
+
+        return {
+            success: true,
+            insertedCount: insertedCount,
+            message: `${insertedCount} registro(s) processado(s) com sucesso`
+        };
+    } catch (error) {
+        console.error('❌ Erro ao enviar registros:', error);
+        return { success: false, message: error.message };
+    }
+});
+
 // Inicializar banco de dados e aplicação
 app.whenReady().then(async () => {
     try {

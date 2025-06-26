@@ -187,9 +187,31 @@
                         <button class="tab-btn active" onclick="showComparisonTab('all')">Todos</button>
                         <button class="tab-btn" onclick="showComparisonTab('match')">Iguais</button>
                         <button class="tab-btn" onclick="showComparisonTab('diff')">Diferentes</button>
-                        <button class="tab-btn" onclick="showComparisonTab('only-db1')">Só no BD1</button>
-                        <button class="tab-btn" onclick="showComparisonTab('only-db2')">Só no BD2</button>
+                        <button class="tab-btn" onclick="showComparisonTab('only-db1')" id="tab-only-db1">Só no
+                            BD1</button>
+                        <button class="tab-btn" onclick="showComparisonTab('only-db2')" id="tab-only-db2">Só no
+                            BD2</button>
                     </div>
+
+                    <!-- Ações em lote -->
+                    <div id="bulk-actions" class="bulk-actions">
+                        <h4>🚀 Ações com Registros Selecionados</h4>
+                        <div class="actions-row">
+                            <div class="selected-count" id="selected-count">0 selecionados</div>
+                            <button class="btn-send" id="send-to-db1" onclick="sendSelectedRecords('db1')" disabled>
+                                <i class="icon">➡️</i>
+                                <span id="send-to-db1-text">Enviar para BD1</span>
+                            </button>
+                            <button class="btn-send" id="send-to-db2" onclick="sendSelectedRecords('db2')" disabled>
+                                <i class="icon">⬅️</i>
+                                <span id="send-to-db2-text">Enviar para BD2</span>
+                            </button>
+                            <button class="btn-clear-selection" onclick="clearSelection()">
+                                Limpar Seleção
+                            </button>
+                        </div>
+                    </div>
+
                     <div id="comparison-table" class="comparison-table-detailed">
                         <!-- Resultados da comparação -->
                     </div>
@@ -207,6 +229,9 @@
         let tableFields = [];
         let comparisonResult = [];
         let currentComparisonTab = 'all';
+        let selectedRecords = new Set();
+        let db1Name = '';
+        let db2Name = '';
 
         window.addEventListener('DOMContentLoaded', () => {
             initializePage();
@@ -228,10 +253,19 @@
             try {
                 const result = await ipcRenderer.invoke('get-database-names');
                 if (result.success) {
-                    document.getElementById('db1-filter-title').textContent = result.db1Name;
-                    document.getElementById('db2-filter-title').textContent = result.db2Name;
-                    document.getElementById('db1-results-title').textContent = result.db1Name;
-                    document.getElementById('db2-results-title').textContent = result.db2Name;
+                    db1Name = result.db1Name;
+                    db2Name = result.db2Name;
+
+                    document.getElementById('db1-filter-title').textContent = db1Name;
+                    document.getElementById('db2-filter-title').textContent = db2Name;
+                    document.getElementById('db1-results-title').textContent = db1Name;
+                    document.getElementById('db2-results-title').textContent = db2Name;
+
+                    // Atualizar textos dos botões e tabs
+                    document.getElementById('tab-only-db1').textContent = `Só no ${db1Name}`;
+                    document.getElementById('tab-only-db2').textContent = `Só no ${db2Name}`;
+                    document.getElementById('send-to-db1-text').textContent = `Enviar para ${db1Name}`;
+                    document.getElementById('send-to-db2-text').textContent = `Enviar para ${db2Name}`;
                 }
             } catch (error) {
                 console.error('Erro ao carregar nomes dos bancos:', error);
@@ -441,6 +475,9 @@
             });
             event.target.classList.add('active');
 
+            // Limpar seleção ao mudar de aba
+            clearSelection();
+
             displayComparisonResults();
         }
 
@@ -473,10 +510,11 @@
             let html = '<div class="comparison-table-container">';
             html += '<table class="comparison-table">';
             html += '<thead><tr>';
+            html += '<th><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll()" title="Selecionar todos"></th>';
             html += '<th>Status</th>';
             html += '<th>Valor Comparação</th>';
-            html += '<th>Registro BD1</th>';
-            html += '<th>Registro BD2</th>';
+            html += `<th>Registro ${db1Name}</th>`;
+            html += `<th>Registro ${db2Name}</th>`;
             html += '</tr></thead><tbody>';
 
             filteredResults.forEach(result => {
@@ -484,8 +522,8 @@
                 const statusText = {
                     'match': '✅ Igual',
                     'different': '⚠️ Diferente',
-                    'only-db1': '❌ Só BD1',
-                    'only-db2': '❌ Só BD2'
+                    'only-db1': `❌ Só no ${db1Name}`,
+                    'only-db2': `❌ Só no ${db2Name}`
                 }[result.status];
 
                 const db1Value = result.db1Record ? JSON.stringify(result.db1Record, null, 2) : '-';
@@ -497,7 +535,11 @@
                 const db1Class = db1Truncated ? ' class="truncated-value"' : '';
                 const db2Class = db2Truncated ? ' class="truncated-value"' : '';
 
-                html += `<tr class="comparison-row ${statusClass}">`;
+                const recordId = `record_${i}`;
+                const isSelected = selectedRecords.has(recordId);
+
+                html += `<tr class="comparison-row ${statusClass}" data-record-id="${recordId}">`;
+                html += `<td><input type="checkbox" class="record-checkbox" ${isSelected ? 'checked' : ''} onchange="toggleRecordSelection('${recordId}', ${i})"></td>`;
                 html += `<td><span class="status-badge ${statusClass}">${statusText}</span></td>`;
                 html += `<td><strong>${result.compareValue}</strong></td>`;
                 html += `<td${db1Class} ${db1Title}>${db1Value}</td>`;
@@ -515,6 +557,122 @@
 
         // Atualizar botão de comparação quando campo for selecionado
         document.getElementById('compare-field-select').addEventListener('change', updateCompareButton);
+
+        // Funções de seleção de registros
+        function toggleRecordSelection(recordId, index) {
+            if (selectedRecords.has(recordId)) {
+                selectedRecords.delete(recordId);
+            } else {
+                selectedRecords.add(recordId);
+                // Armazenar dados do registro para envio
+                selectedRecords.data = selectedRecords.data || {};
+                selectedRecords.data[recordId] = comparisonResult[index];
+            }
+            updateSelectionUI();
+        }
+
+        function toggleSelectAll() {
+            const selectAllCheckbox = document.getElementById('select-all-checkbox');
+            const recordCheckboxes = document.querySelectorAll('.record-checkbox');
+
+            if (selectAllCheckbox.checked) {
+                // Selecionar todos
+                selectedRecords.clear();
+                selectedRecords.data = {};
+                recordCheckboxes.forEach((checkbox, index) => {
+                    checkbox.checked = true;
+                    const recordId = `record_${index}`;
+                    selectedRecords.add(recordId);
+                    selectedRecords.data[recordId] = comparisonResult[index];
+                });
+            } else {
+                // Desselecionar todos
+                selectedRecords.clear();
+                selectedRecords.data = {};
+                recordCheckboxes.forEach(checkbox => checkbox.checked = false);
+            }
+            updateSelectionUI();
+        }
+
+        function clearSelection() {
+            selectedRecords.clear();
+            selectedRecords.data = {};
+            document.querySelectorAll('.record-checkbox').forEach(checkbox => checkbox.checked = false);
+            document.getElementById('select-all-checkbox').checked = false;
+            updateSelectionUI();
+        }
+
+        function updateSelectionUI() {
+            const count = selectedRecords.size;
+            const bulkActions = document.getElementById('bulk-actions');
+            const selectedCount = document.getElementById('selected-count');
+            const sendToDb1Btn = document.getElementById('send-to-db1');
+            const sendToDb2Btn = document.getElementById('send-to-db2');
+
+            selectedCount.textContent = `${count} selecionados`;
+
+            if (count > 0) {
+                bulkActions.classList.add('show');
+                sendToDb1Btn.disabled = false;
+                sendToDb2Btn.disabled = false;
+            } else {
+                bulkActions.classList.remove('show');
+                sendToDb1Btn.disabled = true;
+                sendToDb2Btn.disabled = true;
+            }
+
+            // Atualizar estado do "selecionar todos"
+            const totalRecords = document.querySelectorAll('.record-checkbox').length;
+            const selectAllCheckbox = document.getElementById('select-all-checkbox');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.indeterminate = count > 0 && count < totalRecords;
+                selectAllCheckbox.checked = count === totalRecords && totalRecords > 0;
+            }
+        }
+
+        async function sendSelectedRecords(targetDatabase) {
+            if (selectedRecords.size === 0) {
+                alert('Selecione pelo menos um registro para enviar.');
+                return;
+            }
+
+            const selectedData = Array.from(selectedRecords).map(recordId => selectedRecords.data[recordId]);
+            const targetName = targetDatabase === 'db1' ? db1Name : db2Name;
+
+            if (!confirm(`Deseja enviar ${selectedRecords.size} registro(s) para ${targetName}?`)) {
+                return;
+            }
+
+            try {
+                const sendButton = document.getElementById(`send-to-${targetDatabase}`);
+                sendButton.disabled = true;
+                sendButton.innerHTML = '<i class="icon">⏳</i> Enviando...';
+
+                const result = await ipcRenderer.invoke('send-records-to-database', {
+                    tableName: currentTableName,
+                    targetDatabase: targetDatabase,
+                    records: selectedData
+                });
+
+                if (result.success) {
+                    alert(`✅ ${result.insertedCount} registro(s) enviado(s) para ${targetName} com sucesso!`);
+                    clearSelection();
+                    // Recarregar dados para refletir mudanças
+                    if (db1Data.length > 0) await searchRecords('db1');
+                    if (db2Data.length > 0) await searchRecords('db2');
+                } else {
+                    alert(`❌ Erro ao enviar registros: ${result.message}`);
+                }
+            } catch (error) {
+                alert(`❌ Erro ao enviar registros: ${error.message}`);
+            } finally {
+                const sendButton = document.getElementById(`send-to-${targetDatabase}`);
+                sendButton.disabled = false;
+                sendButton.innerHTML = targetDatabase === 'db1' ?
+                    `<i class="icon">➡️</i> <span>Enviar para ${db1Name}</span>` :
+                    `<i class="icon">⬅️</i> <span>Enviar para ${db2Name}</span>`;
+            }
+        }
     </script>
 </body>
 

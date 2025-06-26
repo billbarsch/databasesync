@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Projetos - Database Sync</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <i class="icon">📁</i>
+                Gerenciar Projetos
+            </h1>
+            <p class="subtitle">Criação e Administração de Projetos</p>
+            <nav>
+                <button id="backBtn" class="btn btn-secondary">
+                    ← Voltar
+                </button>
+            </nav>
+        </header>
+
+        <main>
+            <!-- Seção para criar novo projeto -->
+            <section class="card">
+                <h2>➕ Criar Novo Projeto</h2>
+                <form id="createProjectForm">
+                    <div class="form-group">
+                        <label for="projectName">Nome do Projeto:</label>
+                        <input type="text" id="projectName" placeholder="Ex: Sistema de Vendas" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="projectDescription">Descrição (opcional):</label>
+                        <textarea id="projectDescription" placeholder="Descreva o propósito deste projeto..."
+                            rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        Criar Projeto
+                    </button>
+                </form>
+            </section>
+
+            <!-- Lista de projetos existentes -->
+            <section class="card">
+                <div class="section-header">
+                    <h2>📋 Projetos Existentes</h2>
+                    <button id="refreshProjectsBtn" class="btn btn-secondary">
+                        🔄 Atualizar
+                    </button>
+                </div>
+
+                <div id="projectsList" class="projects-list">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Carregando projetos...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal para editar projeto -->
+    <div id="editProjectModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Editar Projeto</h3>
+                <span class="close">&times;</span>
+            </div>
+            <form id="editProjectForm">
+                <div class="form-group">
+                    <label for="editProjectName">Nome do Projeto:</label>
+                    <input type="text" id="editProjectName" required>
+                </div>
+                <div class="form-group">
+                    <label for="editProjectDescription">Descrição:</label>
+                    <textarea id="editProjectDescription" rows="3"
+                        placeholder="Descreva o propósito deste projeto..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Salvar Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de confirmação para exclusão -->
+    <div id="deleteConfirmModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ Confirmar Exclusão</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir este projeto?</p>
+                <p><strong id="deleteProjectName"></strong></p>
+                <p class="warning-text">
+                    ⚠️ Esta ação irá remover permanentemente:
+                </p>
+                <ul class="warning-list">
+                    <li>Todas as configurações de conexão</li>
+                    <li>Todo o histórico de comparações</li>
+                    <li>Todos os dados em cache</li>
+                </ul>
+                <p class="warning-text">Esta ação não pode ser desfeita!</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    Excluir Projeto
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        let currentEditingProjectId = null;
+        let currentDeletingProjectId = null;
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProjects();
+            setupEventListeners();
+        });
+
+        // Configurar event listeners
+        function setupEventListeners() {
+            // Voltar para página principal
+            document.getElementById('backBtn').addEventListener('click', () => {
+                window.close();
+            });
+
+            // Criar novo projeto
+            document.getElementById('createProjectForm').addEventListener('submit', handleCreateProject);
+
+            // Atualizar lista de projetos
+            document.getElementById('refreshProjectsBtn').addEventListener('click', loadProjects);
+
+            // Editar projeto
+            document.getElementById('editProjectForm').addEventListener('submit', handleEditProject);
+
+            // Modais
+            setupModalListeners();
+        }
+
+        // Configurar listeners dos modais
+        function setupModalListeners() {
+            const editModal = document.getElementById('editProjectModal');
+            const deleteModal = document.getElementById('deleteConfirmModal');
+
+            // Fechar modais ao clicar no X
+            document.querySelectorAll('.close').forEach(closeBtn => {
+                closeBtn.addEventListener('click', (e) => {
+                    const modal = e.target.closest('.modal');
+                    if (modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+
+            // Fechar modais ao clicar fora
+            window.addEventListener('click', (e) => {
+                if (e.target === editModal) {
+                    closeEditModal();
+                }
+                if (e.target === deleteModal) {
+                    closeDeleteModal();
+                }
+            });
+
+            // Confirmar exclusão
+            document.getElementById('confirmDeleteBtn').addEventListener('click', handleDeleteProject);
+        }
+
+        // Carregar lista de projetos
+        async function loadProjects() {
+            try {
+                const response = await ipcRenderer.invoke('get-all-projects');
+                if (response.success) {
+                    displayProjects(response.data);
+                } else {
+                    showMessage('Erro ao carregar projetos: ' + response.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar projetos:', error);
+                showMessage('Erro ao carregar projetos: ' + error.message, 'error');
+            }
+        }
+
+        // Exibir projetos na interface
+        function displayProjects(projects) {
+            const projectsList = document.getElementById('projectsList');
+
+            if (!projects || projects.length === 0) {
+                projectsList.innerHTML = `
+                    <div class="empty-state">
+                        <p>📂 Nenhum projeto encontrado</p>
+                        <p>Crie seu primeiro projeto usando o formulário acima.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const projectsHtml = projects.map(project => `
+                <div class="project-item" data-project-id="${project.id}">
+                    <div class="project-info">
+                        <h3 class="project-name">${project.name}</h3>
+                        <p class="project-description">${project.description || 'Sem descrição'}</p>
+                        <div class="project-meta">
+                            <span class="project-date">
+                                📅 Criado: ${new Date(project.created_at).toLocaleDateString('pt-BR')}
+                            </span>
+                            ${project.updated_at !== project.created_at ?
+                    `<span class="project-date">
+                                    ✏️ Atualizado: ${new Date(project.updated_at).toLocaleDateString('pt-BR')}
+                                </span>` : ''
+                }
+                        </div>
+                    </div>
+                    <div class="project-actions">
+                        <button class="btn btn-success" onclick="selectProject(${project.id}, '${project.name}')">
+                            🚀 Usar Projeto
+                        </button>
+                        <button class="btn btn-secondary" onclick="editProject(${project.id})">
+                            ✏️ Editar
+                        </button>
+                        <button class="btn btn-danger" onclick="confirmDeleteProject(${project.id}, '${project.name}')">
+                            🗑️ Excluir
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            projectsList.innerHTML = projectsHtml;
+        }
+
+        // Criar novo projeto
+        async function handleCreateProject(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('projectName').value.trim();
+            const description = document.getElementById('projectDescription').value.trim();
+
+            if (!name) {
+                showMessage('Nome do projeto é obrigatório', 'error');
+                return;
+            }
+
+            try {
+                const response = await ipcRenderer.invoke('create-project', { name, description });
+                if (response.success) {
+                    showMessage('Projeto criado com sucesso!', 'success');
+
+                    // Limpar formulário
+                    document.getElementById('createProjectForm').reset();
+
+                    // Recarregar lista
+                    loadProjects();
+                } else {
+                    showMessage('Erro ao criar projeto: ' + response.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao criar projeto:', error);
+                showMessage('Erro ao criar projeto: ' + error.message, 'error');
+            }
+        }
+
+        // Selecionar projeto e voltar para a tela principal
+        async function selectProject(projectId, projectName) {
+            try {
+                const response = await ipcRenderer.invoke('select-project', projectId);
+                if (response.success) {
+                    showMessage(`Projeto "${projectName}" selecionado!`, 'success');
+                    setTimeout(() => {
+                        window.close();
+                    }, 1000);
+                } else {
+                    showMessage('Erro ao selecionar projeto: ' + response.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao selecionar projeto:', error);
+                showMessage('Erro ao selecionar projeto: ' + error.message, 'error');
+            }
+        }
+
+        // Abrir modal de edição
+        async function editProject(projectId) {
+            try {
+                const response = await ipcRenderer.invoke('get-project', projectId);
+
+                if (response.success && response.data) {
+                    currentEditingProjectId = projectId;
+                    document.getElementById('editProjectName').value = response.data.name;
+                    document.getElementById('editProjectDescription').value = response.data.description || '';
+
+                    document.getElementById('editProjectModal').style.display = 'block';
+                } else {
+                    showMessage('Erro ao carregar projeto: ' + (response.message || 'Projeto não encontrado'), 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar projeto para edição:', error);
+                showMessage('Erro ao carregar projeto: ' + error.message, 'error');
+            }
+        }
+
+        // Salvar edições do projeto
+        async function handleEditProject(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('editProjectName').value.trim();
+            const description = document.getElementById('editProjectDescription').value.trim();
+
+            if (!name) {
+                showMessage('Nome do projeto é obrigatório', 'error');
+                return;
+            }
+
+            try {
+                const response = await ipcRenderer.invoke('update-project', {
+                    id: currentEditingProjectId,
+                    name,
+                    description
+                });
+
+                if (response.success) {
+                    showMessage('Projeto atualizado com sucesso!', 'success');
+                    closeEditModal();
+                    loadProjects();
+                } else {
+                    showMessage('Erro ao atualizar projeto: ' + response.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao atualizar projeto:', error);
+                showMessage('Erro ao atualizar projeto: ' + error.message, 'error');
+            }
+        }
+
+        // Confirmar exclusão de projeto
+        function confirmDeleteProject(projectId, projectName) {
+            currentDeletingProjectId = projectId;
+            document.getElementById('deleteProjectName').textContent = projectName;
+            document.getElementById('deleteConfirmModal').style.display = 'block';
+        }
+
+        // Excluir projeto
+        async function handleDeleteProject() {
+            if (!currentDeletingProjectId) {
+                showMessage('Erro: Nenhum projeto selecionado para exclusão', 'error');
+                return;
+            }
+
+            try {
+                const response = await ipcRenderer.invoke('delete-project', currentDeletingProjectId);
+                if (response.success) {
+                    showMessage('Projeto excluído com sucesso!', 'success');
+                    closeDeleteModal();
+                    loadProjects();
+                } else {
+                    showMessage('Erro ao excluir projeto: ' + response.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao excluir projeto:', error);
+                showMessage('Erro ao excluir projeto: ' + error.message, 'error');
+            }
+        }
+
+        // Fechar modal de edição
+        function closeEditModal() {
+            document.getElementById('editProjectModal').style.display = 'none';
+            currentEditingProjectId = null;
+        }
+
+        // Fechar modal de exclusão
+        function closeDeleteModal() {
+            document.getElementById('deleteConfirmModal').style.display = 'none';
+            currentDeletingProjectId = null;
+        }
+
+        // Mostrar mensagem
+        function showMessage(message, type = 'info') {
+            // Remover mensagem anterior se existir
+            const existingMessage = document.querySelector('.message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message message-${type}`;
+            messageDiv.textContent = message;
+
+            // Inserir no topo da página
+            document.querySelector('.container').insertBefore(messageDiv, document.querySelector('header').nextSibling);
+
+            // Remover após 5 segundos
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.remove();
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+
+</html>

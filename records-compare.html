@@ -86,6 +86,11 @@
                                         <i class="icon">🗑️</i>
                                         Limpar Todos
                                     </button>
+                                    <button class="btn btn-secondary" onclick="clearSavedFilters('db1')"
+                                        title="Limpar filtros salvos desta tabela">
+                                        <i class="icon">💾❌</i>
+                                        Limpar Salvos
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -152,6 +157,11 @@
                                         <i class="icon">🗑️</i>
                                         Limpar Todos
                                     </button>
+                                    <button class="btn btn-secondary" onclick="clearSavedFilters('db2')"
+                                        title="Limpar filtros salvos desta tabela">
+                                        <i class="icon">💾❌</i>
+                                        Limpar Salvos
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -173,18 +183,24 @@
                             Comparar Registros
                         </button>
                         <div class="comparison-stats" id="comparison-stats" style="display: none;">
-                            <span class="stat-item">
-                                <strong id="total-db1">0</strong> no BD1
-                            </span>
-                            <span class="stat-item">
-                                <strong id="total-db2">0</strong> no BD2
-                            </span>
-                            <span class="stat-item match">
-                                <strong id="total-match">0</strong> iguais
-                            </span>
-                            <span class="stat-item diff">
-                                <strong id="total-diff">0</strong> diferentes
-                            </span>
+                            <div class="stats-row">
+                                <div class="stat-box db1-stat">
+                                    <div class="stat-number" id="total-db1">0</div>
+                                    <div class="stat-label" id="db1-stat-label">no BD1</div>
+                                </div>
+                                <div class="stat-box db2-stat">
+                                    <div class="stat-number" id="total-db2">0</div>
+                                    <div class="stat-label" id="db2-stat-label">no BD2</div>
+                                </div>
+                                <div class="stat-box match-stat">
+                                    <div class="stat-number" id="total-match">0</div>
+                                    <div class="stat-label">iguais</div>
+                                </div>
+                                <div class="stat-box diff-stat">
+                                    <div class="stat-number" id="total-diff">0</div>
+                                    <div class="stat-label">diferentes</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -236,13 +252,14 @@
                 <div id="comparison-results" class="comparison-results" style="display: none;">
                     <h3>📊 Resultado da Comparação</h3>
                     <div class="comparison-tabs">
-                        <button class="tab-btn active" onclick="showComparisonTab('all')">Todos</button>
-                        <button class="tab-btn" onclick="showComparisonTab('match')">Iguais</button>
-                        <button class="tab-btn" onclick="showComparisonTab('diff')">Diferentes</button>
-                        <button class="tab-btn" onclick="showComparisonTab('only-db1')" id="tab-only-db1">Só no
+                        <button class="tab-btn active" onclick="showComparisonTab('all', this)">Todos</button>
+                        <button class="tab-btn" onclick="showComparisonTab('match', this)">Iguais</button>
+                        <button class="tab-btn" onclick="showComparisonTab('diff', this)">Diferentes</button>
+                        <button class="tab-btn" onclick="showComparisonTab('only-db1', this)" id="tab-only-db1">Só no
                             BD1</button>
-                        <button class="tab-btn" onclick="showComparisonTab('only-db2')" id="tab-only-db2">Só no
+                        <button class="tab-btn" onclick="showComparisonTab('only-db2', this)" id="tab-only-db2">Só no
                             BD2</button>
+
                     </div>
 
                     <!-- Ações em lote -->
@@ -282,6 +299,7 @@
         let comparisonResult = [];
         let currentComparisonTab = 'all';
         let selectedRecords = new Set();
+        selectedRecords.data = {};
         let db1Name = '';
         let db2Name = '';
 
@@ -298,6 +316,10 @@
                 document.getElementById('current-table-name').textContent = currentTableName;
                 await loadTableFields();
                 await loadDatabaseNames();
+
+                // Carregar filtros salvos para esta tabela
+                await loadSavedFilters('db1');
+                await loadSavedFilters('db2');
 
                 // Inicializar botões de remoção
                 updateRemoveButtons('db1');
@@ -431,6 +453,9 @@
 
                     // Habilitar botão de comparação se ambos os bancos têm dados
                     updateCompareButton();
+
+                    // Salvar filtros após busca bem-sucedida
+                    await saveCurrentFilters(database);
                 } else {
                     showError(results, result.message);
                 }
@@ -467,8 +492,7 @@
 
         function updateFilterSummary(database, filters) {
             // Esta função poderia mostrar um resumo dos filtros aplicados
-            // Por enquanto vamos só fazer log
-            console.log(`Filtros para ${database}:`, filters);
+            // Por enquanto não faz nada, mas pode ser expandida no futuro
         }
 
         function displayRecords(database, records) {
@@ -567,6 +591,9 @@
 
             // Habilitar botões de remoção se houver mais de um filtro
             updateRemoveButtons(database);
+
+            // Salvar filtros após adicionar novo
+            saveCurrentFilters(database);
         }
 
         function removeFilter(database, index) {
@@ -589,6 +616,9 @@
 
             // Atualizar botões de remoção
             updateRemoveButtons(database);
+
+            // Salvar filtros após remoção
+            saveCurrentFilters(database);
         }
 
         function reindexFilters(database) {
@@ -667,6 +697,9 @@
             // Atualizar botões
             updateRemoveButtons(database);
             updateCompareButton();
+
+            // Salvar filtros após limpeza
+            saveCurrentFilters(database);
         }
 
         function updateCompareButton() {
@@ -688,6 +721,16 @@
                 return;
             }
 
+            if (db1Data.length === 0 || db2Data.length === 0) {
+                alert('Execute a busca em ambos os bancos antes de comparar');
+                return;
+            }
+
+            console.log(`🔄 === INICIANDO COMPARAÇÃO ===`);
+            console.log(`Campo de comparação: ${compareField}`);
+            console.log(`Registros DB1: ${db1Data.length}`);
+            console.log(`Registros DB2: ${db2Data.length}`);
+
             try {
                 const result = await ipcRenderer.invoke('compare-records', {
                     db1Records: db1Data,
@@ -697,11 +740,29 @@
 
                 if (result.success) {
                     comparisonResult = result.comparison;
+                    console.log(`✅ Comparação concluída: ${comparisonResult.length} resultados`);
+
+                    // Resetar para aba "Todos" após nova comparação
+                    currentComparisonTab = 'all';
+
+                    // Ativar botão da aba "Todos"
+                    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                    const allButton = document.querySelector('button[onclick*="all"]');
+                    if (allButton) {
+                        allButton.classList.add('active');
+                    }
+
                     displayComparisonStats(result.stats);
                     displayComparisonResults();
                     document.getElementById('comparison-results').style.display = 'block';
+
+                    // Limpar seleções anteriores
+                    clearSelection();
+                } else {
+                    alert('Erro na comparação: ' + result.message);
                 }
             } catch (error) {
+                console.error('❌ Erro ao comparar registros:', error);
                 alert('Erro ao comparar registros: ' + error.message);
             }
         }
@@ -711,30 +772,60 @@
             document.getElementById('total-db2').textContent = stats.totalDb2;
             document.getElementById('total-match').textContent = stats.totalMatch;
             document.getElementById('total-diff').textContent = stats.totalDiff;
+
+            // Atualizar labels com nomes dos bancos
+            document.getElementById('db1-stat-label').textContent = `no ${db1Name}`;
+            document.getElementById('db2-stat-label').textContent = `no ${db2Name}`;
+
             document.getElementById('comparison-stats').style.display = 'block';
         }
 
-        function showComparisonTab(tab) {
+        function showComparisonTab(tab, buttonElement) {
+            console.log(`📋 === MUDANDO PARA ABA: ${tab} ===`);
+
+            if (!comparisonResult || comparisonResult.length === 0) {
+                console.log(`⚠️ Nenhum resultado de comparação disponível`);
+                alert('Execute uma comparação primeiro');
+                return;
+            }
+
+            // Atualizar aba atual
             currentComparisonTab = tab;
 
             // Atualizar botões
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-            event.target.classList.add('active');
+
+            if (buttonElement) {
+                buttonElement.classList.add('active');
+            }
 
             // Limpar seleção ao mudar de aba
             clearSelection();
 
+            // Exibir resultados filtrados
             displayComparisonResults();
+
+            const filteredCount = getFilteredResults().length;
+            console.log(`✅ Aba ${tab} ativada - exibindo ${filteredCount} registros`);
         }
 
-        function displayComparisonResults() {
-            const container = document.getElementById('comparison-table');
-            let filteredResults = comparisonResult;
+        function getFilteredResults() {
+            if (!comparisonResult || !Array.isArray(comparisonResult)) {
+                console.log(`⚠️ Nenhum resultado de comparação disponível`);
+                return [];
+            }
 
-            // Filtrar baseado na aba ativa
+            console.log(`🔍 Filtrando por aba: ${currentComparisonTab}`);
+            console.log(`📊 Total de resultados: ${comparisonResult.length}`);
+
+            let filteredResults;
+
             switch (currentComparisonTab) {
+                case 'all':
+                    filteredResults = comparisonResult;
+                    break;
                 case 'match':
                     filteredResults = comparisonResult.filter(r => r.status === 'match');
                     break;
@@ -747,14 +838,48 @@
                 case 'only-db2':
                     filteredResults = comparisonResult.filter(r => r.status === 'only-db2');
                     break;
+                default:
+                    console.log(`⚠️ Aba desconhecida: ${currentComparisonTab}, usando 'all'`);
+                    filteredResults = comparisonResult;
+                    break;
             }
 
+            console.log(`📈 Resultados filtrados: ${filteredResults.length}`);
+            console.log(`🏷️ Status encontrados:`, [...new Set(comparisonResult.map(r => r.status))]);
+
+            return filteredResults;
+        }
+
+        function displayComparisonResults() {
+            console.log(`📊 === EXIBINDO RESULTADOS DA COMPARAÇÃO ===`);
+            console.log(`📋 Aba atual: ${currentComparisonTab}`);
+
+            const container = document.getElementById('comparison-table');
+            const filteredResults = getFilteredResults();
+
+            console.log(`📦 Registros para exibir: ${filteredResults.length}`);
+
             if (filteredResults.length === 0) {
-                container.innerHTML = '<p class="no-data-message">Nenhum registro para esta categoria</p>';
+                let message = 'Nenhum registro encontrado para esta categoria';
+                switch (currentComparisonTab) {
+                    case 'only-db1':
+                        message = `Nenhum registro encontrado apenas no ${db1Name}`;
+                        break;
+                    case 'only-db2':
+                        message = `Nenhum registro encontrado apenas no ${db2Name}`;
+                        break;
+                    case 'match':
+                        message = 'Nenhum registro idêntico encontrado';
+                        break;
+                    case 'diff':
+                        message = 'Nenhum registro diferente encontrado';
+                        break;
+                }
+                container.innerHTML = `<p class="no-data-message">${message}</p>`;
                 return;
             }
 
-            // Criar tabela de comparação
+            // Criar tabela
             let html = '<div class="comparison-table-container">';
             html += '<table class="comparison-table">';
             html += '<thead><tr>';
@@ -765,89 +890,107 @@
             html += `<th>Registro ${db2Name}</th>`;
             html += '</tr></thead><tbody>';
 
-            filteredResults.forEach(result => {
-                const statusClass = result.status.replace('-', '_');
+            filteredResults.forEach((result, index) => {
+                const statusClass = result.status.replace(/-/g, '_');
                 const statusText = {
                     'match': '✅ Igual',
                     'different': '⚠️ Diferente',
                     'only-db1': `❌ Só no ${db1Name}`,
                     'only-db2': `❌ Só no ${db2Name}`
-                }[result.status];
+                }[result.status] || result.status;
 
                 const db1Value = result.db1Record ? JSON.stringify(result.db1Record, null, 2) : '-';
                 const db2Value = result.db2Record ? JSON.stringify(result.db2Record, null, 2) : '-';
-                const db1Truncated = db1Value.length > 50;
-                const db2Truncated = db2Value.length > 50;
-                const db1Title = db1Truncated ? `title="${db1Value.replace(/"/g, '&quot;')}"` : '';
-                const db2Title = db2Truncated ? `title="${db2Value.replace(/"/g, '&quot;')}"` : '';
-                const db1Class = db1Truncated ? ' class="truncated-value"' : '';
-                const db2Class = db2Truncated ? ' class="truncated-value"' : '';
 
-                const recordId = `record_${i}`;
+                const recordId = `record_${index}`;
                 const isSelected = selectedRecords.has(recordId);
 
                 html += `<tr class="comparison-row ${statusClass}" data-record-id="${recordId}">`;
-                html += `<td><input type="checkbox" class="record-checkbox" ${isSelected ? 'checked' : ''} onchange="toggleRecordSelection('${recordId}', ${i})"></td>`;
+                html += `<td><input type="checkbox" class="record-checkbox" ${isSelected ? 'checked' : ''} onchange="toggleRecordSelection('${recordId}', ${index})"></td>`;
                 html += `<td><span class="status-badge ${statusClass}">${statusText}</span></td>`;
                 html += `<td><strong>${result.compareValue}</strong></td>`;
-                html += `<td${db1Class} ${db1Title}>${db1Value}</td>`;
-                html += `<td${db2Class} ${db2Title}>${db2Value}</td>`;
+                html += `<td class="record-data" title="${db1Value.replace(/"/g, '&quot;')}">${db1Value.length > 100 ? db1Value.substring(0, 100) + '...' : db1Value}</td>`;
+                html += `<td class="record-data" title="${db2Value.replace(/"/g, '&quot;')}">${db2Value.length > 100 ? db2Value.substring(0, 100) + '...' : db2Value}</td>`;
                 html += '</tr>';
             });
 
             html += '</tbody></table></div>';
             container.innerHTML = html;
+
+            console.log(`✅ Tabela renderizada com ${filteredResults.length} registros`);
         }
 
-        function showError(container, message) {
-            container.innerHTML = `<p class="error-message">❌ ${message}</p>`;
-        }
-
-        // Atualizar botão de comparação quando campo for selecionado
-        document.getElementById('compare-field-select').addEventListener('change', updateCompareButton);
-
-        // Funções de seleção de registros
         function toggleRecordSelection(recordId, index) {
+            console.log(`🔄 Toggle seleção: ${recordId}, índice: ${index}`);
+
+            const filteredResults = getFilteredResults();
+            const recordData = filteredResults[index];
+
+            if (!recordData) {
+                console.error(`❌ Registro não encontrado no índice ${index}`);
+                return;
+            }
+
             if (selectedRecords.has(recordId)) {
                 selectedRecords.delete(recordId);
+                delete selectedRecords.data[recordId];
+                console.log(`❌ Removido da seleção: ${recordId}`);
             } else {
                 selectedRecords.add(recordId);
-                // Armazenar dados do registro para envio
-                selectedRecords.data = selectedRecords.data || {};
-                selectedRecords.data[recordId] = comparisonResult[index];
+                selectedRecords.data[recordId] = recordData;
+                console.log(`✅ Adicionado à seleção: ${recordId}`, recordData);
             }
+
             updateSelectionUI();
         }
 
         function toggleSelectAll() {
             const selectAllCheckbox = document.getElementById('select-all-checkbox');
             const recordCheckboxes = document.querySelectorAll('.record-checkbox');
+            const filteredResults = getFilteredResults();
+
+            console.log(`🔄 Toggle selecionar todos: ${selectAllCheckbox.checked}`);
 
             if (selectAllCheckbox.checked) {
-                // Selecionar todos
+                // Selecionar todos os registros visíveis
                 selectedRecords.clear();
                 selectedRecords.data = {};
+
                 recordCheckboxes.forEach((checkbox, index) => {
                     checkbox.checked = true;
                     const recordId = `record_${index}`;
                     selectedRecords.add(recordId);
-                    selectedRecords.data[recordId] = comparisonResult[index];
+
+                    if (filteredResults[index]) {
+                        selectedRecords.data[recordId] = filteredResults[index];
+                    }
                 });
+                console.log(`✅ ${selectedRecords.size} registros selecionados`);
             } else {
                 // Desselecionar todos
                 selectedRecords.clear();
                 selectedRecords.data = {};
                 recordCheckboxes.forEach(checkbox => checkbox.checked = false);
+                console.log(`❌ Seleção limpa`);
             }
+
             updateSelectionUI();
         }
 
         function clearSelection() {
             selectedRecords.clear();
             selectedRecords.data = {};
+
+            // Atualizar checkboxes
             document.querySelectorAll('.record-checkbox').forEach(checkbox => checkbox.checked = false);
-            document.getElementById('select-all-checkbox').checked = false;
+            const selectAllCheckbox = document.getElementById('select-all-checkbox');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            }
+
             updateSelectionUI();
+            console.log(`🧹 Seleção limpa`);
         }
 
         function updateSelectionUI() {
@@ -869,12 +1012,20 @@
                 sendToDb2Btn.disabled = true;
             }
 
-            // Atualizar estado do "selecionar todos"
-            const totalRecords = document.querySelectorAll('.record-checkbox').length;
+            // Atualizar estado do checkbox "selecionar todos"
+            const totalVisible = document.querySelectorAll('.record-checkbox').length;
             const selectAllCheckbox = document.getElementById('select-all-checkbox');
             if (selectAllCheckbox) {
-                selectAllCheckbox.indeterminate = count > 0 && count < totalRecords;
-                selectAllCheckbox.checked = count === totalRecords && totalRecords > 0;
+                if (count === 0) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                } else if (count === totalVisible) {
+                    selectAllCheckbox.checked = true;
+                    selectAllCheckbox.indeterminate = false;
+                } else {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = true;
+                }
             }
         }
 
@@ -884,34 +1035,196 @@
                 return;
             }
 
-            const selectedData = Array.from(selectedRecords).map(recordId => selectedRecords.data[recordId]);
-            const targetName = targetDatabase === 'db1' ? db1Name : db2Name;
+            console.log(`🚀 === PREPARANDO ENVIO ===`);
+            console.log(`🎯 Destino: ${targetDatabase}`);
+            console.log(`📊 Registros selecionados: ${selectedRecords.size}`);
 
-            if (!confirm(`Deseja enviar ${selectedRecords.size} registro(s) para ${targetName}?`)) {
+            // Validar e coletar dados
+            const recordsToSend = [];
+            let validRecords = 0;
+            let invalidRecords = 0;
+
+            for (const recordId of selectedRecords) {
+                const recordData = selectedRecords.data[recordId];
+                console.log(`📝 Validando ${recordId}:`, recordData);
+
+                if (recordData && recordData.status) {
+                    // Verificar se o registro é válido para envio
+                    let canSend = false;
+                    let sourceRecord = null;
+
+                    if (recordData.status === 'only-db1' && targetDatabase === 'db2') {
+                        // Enviando registro que só existe no DB1 para o DB2
+                        sourceRecord = recordData.db1Record;
+                        canSend = true;
+                    } else if (recordData.status === 'only-db2' && targetDatabase === 'db1') {
+                        // Enviando registro que só existe no DB2 para o DB1
+                        sourceRecord = recordData.db2Record;
+                        canSend = true;
+                    } else if (recordData.status === 'different') {
+                        // Enviando versão diferente - usar registro do banco oposto
+                        sourceRecord = targetDatabase === 'db1' ? recordData.db2Record : recordData.db1Record;
+                        canSend = true;
+                    }
+
+                    if (canSend && sourceRecord) {
+                        // Enviar APENAS o sourceRecord puro, sem metadados de comparação
+                        // Fazer clone profundo preservando tipos de dados (especialmente datas)
+                        const cleanSourceRecord = {};
+                        for (const [key, value] of Object.entries(sourceRecord)) {
+                            cleanSourceRecord[key] = value; // Preserva tipos originais
+                        }
+
+                        recordsToSend.push({
+                            status: recordData.status,
+                            compareValue: recordData.compareValue,
+                            sourceRecord: cleanSourceRecord
+                        });
+                        validRecords++;
+                        console.log(`✅ Registro válido para envio: ${recordId}`);
+                        console.log(`📋 Dados do sourceRecord:`, Object.keys(sourceRecord).slice(0, 3), '...');
+                        console.log(`📊 Campo bancoDados no sourceRecord:`, sourceRecord.bancoDados);
+
+                        // ========= DEBUG ESPECÍFICO PARA BANCDDADOS =========
+                        console.log(`\n🔬 === DEBUG CAMPO bancoDados ===`);
+                        console.log(`🎯 Status do registro: ${recordData.status}`);
+                        console.log(`🔍 Compare Value: ${recordData.compareValue}`);
+
+                        if (recordData.db1Record) {
+                            console.log(`🏦 bancoDados no DB1 Record: ${recordData.db1Record.bancoDados} (${typeof recordData.db1Record.bancoDados})`);
+                        }
+                        if (recordData.db2Record) {
+                            console.log(`🏦 bancoDados no DB2 Record: ${recordData.db2Record ? recordData.db2Record.bancoDados : 'NULL'} (${typeof recordData.db2Record?.bancoDados})`);
+                        }
+                        console.log(`🎯 bancoDados no sourceRecord escolhido: ${sourceRecord.bancoDados} (${typeof sourceRecord.bancoDados})`);
+                        console.log(`🔚 === FIM DEBUG BANCDADOS ===\n`);
+
+                        // Log específico para campos de data
+                        const dateFields = ['dataEmissao', 'dataVencimento', 'dataRecebimento', 'created_at', 'updated_at'];
+                        dateFields.forEach(field => {
+                            if (sourceRecord[field] !== undefined) {
+                                console.log(`📅 Campo ${field}: ${sourceRecord[field]} (tipo: ${typeof sourceRecord[field]})`);
+                            }
+                        });
+                    } else {
+                        invalidRecords++;
+                        console.log(`⚠️ Registro não pode ser enviado: ${recordId} (status: ${recordData.status}, destino: ${targetDatabase})`);
+                    }
+                } else {
+                    invalidRecords++;
+                    console.log(`❌ Registro inválido: ${recordId}`);
+                }
+            }
+
+            if (recordsToSend.length === 0) {
+                alert(`❌ Nenhum registro válido selecionado para envio.\n\nDica: Selecione registros que existem apenas em um banco ou que são diferentes para enviá-los para o outro banco.`);
+                return;
+            }
+
+            const targetName = targetDatabase === 'db1' ? db1Name : db2Name;
+            if (!confirm(`Deseja enviar ${recordsToSend.length} registro(s) para ${targetName}?\n\n${invalidRecords > 0 ? `${invalidRecords} registro(s) serão ignorados por não serem adequados para envio.` : ''}`)) {
                 return;
             }
 
             try {
                 const sendButton = document.getElementById(`send-to-${targetDatabase}`);
+                const originalText = sendButton.innerHTML;
                 sendButton.disabled = true;
                 sendButton.innerHTML = '<i class="icon">⏳</i> Enviando...';
+
+                console.log(`📤 Iniciando envio de ${recordsToSend.length} registros...`);
+                console.log(`📋 Detalhes dos registros a serem enviados:`,
+                    recordsToSend.map((r, idx) => ({
+                        index: idx + 1,
+                        status: r.status,
+                        compareValue: r.compareValue,
+                        bancoDados: r.sourceRecord?.bancoDados,
+                        totalFields: Object.keys(r.sourceRecord || {}).length
+                    }))
+                );
+
+                // Log super detalhado de CADA registro
+                console.log(`\n🔬 === LOGS DETALHADOS DE CADA REGISTRO ===`);
+                recordsToSend.forEach((recordItem, idx) => {
+                    console.log(`\n📝 REGISTRO ${idx + 1}:`);
+                    console.log(`   Status: ${recordItem.status}`);
+                    console.log(`   Compare Value: ${recordItem.compareValue}`);
+
+                    if (recordItem.sourceRecord) {
+                        const sr = recordItem.sourceRecord;
+                        console.log(`   📊 Campos importantes do sourceRecord:`);
+                        console.log(`      id: ${sr.id} (${typeof sr.id})`);
+                        console.log(`      bancoDados: ${sr.bancoDados} (${typeof sr.bancoDados})`);
+                        console.log(`      empresa: ${sr.empresa} (${typeof sr.empresa})`);
+                        console.log(`      emitente: ${sr.emitente} (${typeof sr.emitente})`);
+                        console.log(`      dataEmissao: ${sr.dataEmissao} (${typeof sr.dataEmissao})`);
+
+                        // Mostrar TODOS os campos para debug completo
+                        console.log(`   📋 TODOS OS CAMPOS:`);
+                        Object.keys(sr).forEach(key => {
+                            console.log(`      ${key}: ${sr[key]} (${typeof sr[key]})`);
+                        });
+                    }
+                });
+                console.log(`🏁 === FIM LOGS DETALHADOS FRONTEND ===\n`);
 
                 const result = await ipcRenderer.invoke('send-records-to-database', {
                     tableName: currentTableName,
                     targetDatabase: targetDatabase,
-                    records: selectedData
+                    records: recordsToSend
                 });
 
+                console.log(`📥 Resposta do envio:`, result);
+
                 if (result.success) {
-                    alert(`✅ ${result.insertedCount} registro(s) enviado(s) para ${targetName} com sucesso!`);
+                    console.log(`📊 Resultado detalhado do envio:`, result);
+
+                    let message = `🎯 Processamento de ${recordsToSend.length} registro(s) concluído!\n\n`;
+
+                    if (result.insertedCount > 0) {
+                        message += `✅ ${result.insertedCount} registro(s) INSERIDO(s)\n`;
+                    }
+                    if (result.updatedCount > 0) {
+                        message += `🔄 ${result.updatedCount} registro(s) ATUALIZADO(s)\n`;
+                    }
+                    if (result.skippedCount > 0) {
+                        message += `⏭️ ${result.skippedCount} registro(s) PULADO(s)\n`;
+                    }
+                    if (result.errorCount > 0) {
+                        message += `❌ ${result.errorCount} registro(s) com ERRO\n`;
+                    }
+
+                    const successCount = result.insertedCount + result.updatedCount;
+                    const successRate = ((successCount / recordsToSend.length) * 100).toFixed(1);
+                    message += `\n📈 Taxa de sucesso: ${successRate}%`;
+
+                    if (result.processedRecords && result.processedRecords.length > 0) {
+                        message += `\n\n📋 Detalhes por registro:`;
+                        result.processedRecords.slice(0, 5).forEach(record => {
+                            message += `\n• Registro ${record.index}: ${record.action}`;
+                            if (record.source) message += ` (${record.source})`;
+                            if (record.error) message += ` - ${record.error}`;
+                        });
+
+                        if (result.processedRecords.length > 5) {
+                            message += `\n... e mais ${result.processedRecords.length - 5} registros`;
+                        }
+                    }
+
+                    alert(message);
+
+                    // Limpar seleção
                     clearSelection();
-                    // Recarregar dados para refletir mudanças
-                    if (db1Data.length > 0) await searchRecords('db1');
-                    if (db2Data.length > 0) await searchRecords('db2');
+
+                    // Recarregar dados automaticamente
+                    console.log(`🔄 Recarregando dados para verificar mudanças...`);
+                    await reloadDataAfterSend();
                 } else {
+                    console.error(`❌ Falha no envio:`, result);
                     alert(`❌ Erro ao enviar registros: ${result.message}`);
                 }
             } catch (error) {
+                console.error(`❌ Erro no envio:`, error);
                 alert(`❌ Erro ao enviar registros: ${error.message}`);
             } finally {
                 const sendButton = document.getElementById(`send-to-${targetDatabase}`);
@@ -919,6 +1232,202 @@
                 sendButton.innerHTML = targetDatabase === 'db1' ?
                     `<i class="icon">➡️</i> <span>Enviar para ${db1Name}</span>` :
                     `<i class="icon">⬅️</i> <span>Enviar para ${db2Name}</span>`;
+            }
+        }
+
+        async function reloadDataAfterSend() {
+            try {
+                // Verificar se há filtros ativos em cada banco
+                const db1Filters = collectActiveFilters('db1');
+                const db2Filters = collectActiveFilters('db2');
+
+                // Recarregar dados apenas se há filtros ativos
+                if (db1Filters.length > 0) {
+                    console.log(`🔄 Recarregando dados do ${db1Name}...`);
+                    await searchRecords('db1');
+                }
+
+                if (db2Filters.length > 0) {
+                    console.log(`🔄 Recarregando dados do ${db2Name}...`);
+                    await searchRecords('db2');
+                }
+
+                // Refazer comparação se ambos os bancos têm dados
+                if (db1Data.length > 0 && db2Data.length > 0) {
+                    console.log(`🔄 Refazendo comparação...`);
+                    await compareRecords();
+                }
+            } catch (error) {
+                console.error('❌ Erro ao recarregar dados:', error);
+            }
+        }
+
+        function showError(container, message) {
+            container.innerHTML = `<p class="error-message">❌ ${message}</p>`;
+        }
+
+        // Atualizar botão de comparação quando campo for selecionado
+        document.getElementById('compare-field-select').addEventListener('change', updateCompareButton);
+
+        // === FUNÇÕES DE PERSISTÊNCIA DE FILTROS ===
+
+        async function loadSavedFilters(database) {
+            try {
+                const result = await ipcRenderer.invoke('get-table-filters', {
+                    tableName: currentTableName,
+                    database: database
+                });
+
+                if (result.success && result.filters.length > 0) {
+                    applySavedFilters(database, result.filters);
+                }
+            } catch (error) {
+                console.error(`Erro ao carregar filtros para ${database}:`, error);
+            }
+        }
+
+        function applySavedFilters(database, savedFilters) {
+            const container = document.getElementById(`${database}-filters-container`);
+
+            // Limpar filtros existentes
+            container.innerHTML = '';
+
+            // Aplicar cada filtro salvo
+            savedFilters.forEach((filter, index) => {
+                createFilterRow(database, filter, index);
+            });
+
+            // Se não há filtros salvos, criar pelo menos um filtro vazio
+            if (savedFilters.length === 0) {
+                createFilterRow(database, null, 0);
+            }
+
+            // Atualizar botões de remoção
+            updateRemoveButtons(database);
+        }
+
+        function createFilterRow(database, filterData, index) {
+            const container = document.getElementById(`${database}-filters-container`);
+
+            const newFilterRow = document.createElement('div');
+            newFilterRow.className = 'filter-row';
+            newFilterRow.setAttribute('data-filter-index', index);
+
+            newFilterRow.innerHTML = `
+                <div class="logic-indicator">${index > 0 ? 'E/OU' : ''}</div>
+                <div class="filter-fields">
+                    <div class="form-group">
+                        <label>Campo:</label>
+                        <select class="field-select" data-database="${database}" data-index="${index}">
+                            <option value="">Selecione um campo...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Operador:</label>
+                        <select class="operator-select" data-index="${index}">
+                            <option value="=">=</option>
+                            <option value="!=">!=</option>
+                            <option value=">">&gt;</option>
+                            <option value="<">&lt;</option>
+                            <option value=">=">&gt;=</option>
+                            <option value="<=">&lt;=</option>
+                            <option value="LIKE">LIKE</option>
+                            <option value="NOT LIKE">NOT LIKE</option>
+                            <option value="IS NULL">IS NULL</option>
+                            <option value="IS NOT NULL">IS NOT NULL</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Valor:</label>
+                        <input type="text" class="value-input" data-index="${index}" placeholder="Digite o valor...">
+                    </div>
+                    <div class="form-group">
+                        <label>Lógica:</label>
+                        <select class="logic-select" data-index="${index}">
+                            <option value="AND">E (AND)</option>
+                            <option value="OR">OU (OR)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn-remove-filter" onclick="removeFilter('${database}', ${index})" title="Remover filtro">
+                        <i class="icon">❌</i>
+                    </button>
+                </div>
+            `;
+
+            container.appendChild(newFilterRow);
+
+            // Povoar com campos disponíveis
+            populateFieldSelect(newFilterRow.querySelector('.field-select'));
+
+            // Se há dados do filtro, aplicar
+            if (filterData) {
+                const fieldSelect = newFilterRow.querySelector('.field-select');
+                const operatorSelect = newFilterRow.querySelector('.operator-select');
+                const valueInput = newFilterRow.querySelector('.value-input');
+                const logicSelect = newFilterRow.querySelector('.logic-select');
+
+                fieldSelect.value = filterData.field || '';
+                operatorSelect.value = filterData.operator || '=';
+                valueInput.value = filterData.value || '';
+                logicSelect.value = filterData.logic || 'AND';
+            }
+        }
+
+        function populateFieldSelect(selectElement) {
+            if (!selectElement || !tableFields) return;
+
+            const currentValue = selectElement.value;
+            selectElement.innerHTML = '<option value="">Selecione um campo...</option>';
+
+            tableFields.forEach(field => {
+                const option = new Option(field.name, field.name);
+                selectElement.add(option);
+            });
+
+            // Restaurar valor se ainda existir
+            if (currentValue && tableFields.find(f => f.name === currentValue)) {
+                selectElement.value = currentValue;
+            }
+        }
+
+        async function saveCurrentFilters(database) {
+            try {
+                const filters = collectActiveFilters(database);
+
+                const result = await ipcRenderer.invoke('save-table-filters', {
+                    tableName: currentTableName,
+                    database: database,
+                    filters: filters
+                });
+
+                if (!result.success) {
+                    console.error(`Erro ao salvar filtros para ${database}:`, result.message);
+                }
+            } catch (error) {
+                console.error(`Erro ao salvar filtros para ${database}:`, error);
+            }
+        }
+
+        async function clearSavedFilters(database) {
+            if (!confirm(`Deseja limpar todos os filtros salvos para a tabela "${currentTableName}" no banco ${database}?`)) {
+                return;
+            }
+
+            try {
+                const result = await ipcRenderer.invoke('clear-table-filters', {
+                    tableName: currentTableName
+                });
+
+                if (result.success) {
+                    alert(`✅ Filtros salvos da tabela "${currentTableName}" foram limpos com sucesso!`);
+                } else {
+                    alert(`❌ Erro ao limpar filtros salvos: ${result.message}`);
+                }
+            } catch (error) {
+                console.error(`Erro ao limpar filtros salvos:`, error);
+                alert(`❌ Erro ao limpar filtros salvos: ${error.message}`);
             }
         }
     </script>

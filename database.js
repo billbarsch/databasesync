@@ -36,9 +36,20 @@ class DatabaseManager {
     // Criar tabelas necessárias
     async createTables() {
         const tables = [
+            // Tabela para projetos
+            `CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                is_active INTEGER DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`,
+
             // Tabela para configurações de conexão
             `CREATE TABLE IF NOT EXISTS db_configs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL,
                 config_name TEXT NOT NULL,
                 connection_name TEXT,
                 host TEXT NOT NULL,
@@ -48,12 +59,14 @@ class DatabaseManager {
                 database_name TEXT NOT NULL,
                 is_active INTEGER DEFAULT 1,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
             )`,
 
             // Tabela para histórico de comparações
             `CREATE TABLE IF NOT EXISTS comparison_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL,
                 db1_name TEXT NOT NULL,
                 db2_name TEXT NOT NULL,
                 db1_display_name TEXT,
@@ -63,7 +76,8 @@ class DatabaseManager {
                 same_tables INTEGER NOT NULL,
                 missing_tables INTEGER NOT NULL,
                 comparison_data TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
             )`,
 
             // Tabela para configurações da aplicação
@@ -76,13 +90,28 @@ class DatabaseManager {
             // Tabela para cache de comparação de tabelas
             `CREATE TABLE IF NOT EXISTS table_comparison_cache (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL,
                 db1_config_hash TEXT NOT NULL,
                 db2_config_hash TEXT NOT NULL,
                 comparison_data TEXT NOT NULL,
                 db1_display_name TEXT,
                 db2_display_name TEXT,
                 total_tables INTEGER NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+            )`,
+
+            // Tabela para filtros de busca de registros
+            `CREATE TABLE IF NOT EXISTS table_filters (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL,
+                table_name TEXT NOT NULL,
+                database TEXT NOT NULL,
+                filters_data TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+                UNIQUE(project_id, table_name, database)
             )`
         ];
 
@@ -123,6 +152,31 @@ class DatabaseManager {
                 await this.run(`ALTER TABLE comparison_history ADD COLUMN db2_display_name TEXT`);
                 console.log('✅ Coluna db2_display_name adicionada com sucesso');
             }
+
+            // Migração 3: Adicionar colunas project_id nas tabelas existentes
+            const hasProjectIdInDbConfigs = await this.checkColumnExists('db_configs', 'project_id');
+            if (!hasProjectIdInDbConfigs) {
+                console.log('➕ Adicionando coluna project_id à tabela db_configs...');
+                await this.run(`ALTER TABLE db_configs ADD COLUMN project_id INTEGER DEFAULT 1`);
+                console.log('✅ Coluna project_id adicionada à tabela db_configs');
+            }
+
+            const hasProjectIdInHistory = await this.checkColumnExists('comparison_history', 'project_id');
+            if (!hasProjectIdInHistory) {
+                console.log('➕ Adicionando coluna project_id à tabela comparison_history...');
+                await this.run(`ALTER TABLE comparison_history ADD COLUMN project_id INTEGER DEFAULT 1`);
+                console.log('✅ Coluna project_id adicionada à tabela comparison_history');
+            }
+
+            const hasProjectIdInCache = await this.checkColumnExists('table_comparison_cache', 'project_id');
+            if (!hasProjectIdInCache) {
+                console.log('➕ Adicionando coluna project_id à tabela table_comparison_cache...');
+                await this.run(`ALTER TABLE table_comparison_cache ADD COLUMN project_id INTEGER DEFAULT 1`);
+                console.log('✅ Coluna project_id adicionada à tabela table_comparison_cache');
+            }
+
+            // Não criar mais projeto padrão automático
+            // Os usuários criarão seus próprios projetos conforme necessário
 
             console.log('✅ Migrações concluídas com sucesso');
         } catch (error) {
@@ -187,13 +241,45 @@ class DatabaseManager {
         });
     }
 
+    // Criar novo projeto
+    async createProject(name, description = '') {
+        const sql = `INSERT INTO projects (name, description) VALUES (?, ?)`;
+        return await this.run(sql, [name, description]);
+    }
+
+    // Listar todos os projetos
+    async getAllProjects() {
+        const sql = `SELECT * FROM projects WHERE is_active = 1 ORDER BY updated_at DESC`;
+        return await this.all(sql);
+    }
+
+    // Buscar projeto por ID
+    async getProject(id) {
+        const sql = `SELECT * FROM projects WHERE id = ? AND is_active = 1`;
+        return await this.get(sql, [id]);
+    }
+
+    // Atualizar projeto
+    async updateProject(id, name, description) {
+        const sql = `UPDATE projects SET name = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+        return await this.run(sql, [name, description, id]);
+    }
+
+    // Excluir projeto (e todos os dados relacionados)
+    async deleteProject(id) {
+        // Como configuramos ON DELETE CASCADE, todos os dados relacionados serão removidos automaticamente
+        const sql = `DELETE FROM projects WHERE id = ?`;
+        return await this.run(sql, [id]);
+    }
+
     // Salvar configuração de banco
-    async saveDbConfig(configName, config) {
+    async saveDbConfig(configName, config, projectId = 1) {
         const sql = `INSERT OR REPLACE INTO db_configs 
-                     (config_name, connection_name, host, port, user, password, database_name, updated_at) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+                     (project_id, config_name, connection_name, host, port, user, password, database_name, updated_at) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
 
         const params = [
+            projectId,
             configName,
             config.connectionName || `Banco ${configName === 'database1' ? '1' : '2'}`,
             config.host,
@@ -206,10 +292,10 @@ class DatabaseManager {
         return await this.run(sql, params);
     }
 
-    // Buscar configuração de banco
-    async getDbConfig(configName) {
-        const sql = `SELECT * FROM db_configs WHERE config_name = ? AND is_active = 1`;
-        const row = await this.get(sql, [configName]);
+    // Buscar configuração de banco por projeto
+    async getDbConfig(configName, projectId = 1) {
+        const sql = `SELECT * FROM db_configs WHERE config_name = ? AND project_id = ? AND is_active = 1`;
+        const row = await this.get(sql, [configName, projectId]);
 
         if (row) {
             return {
@@ -225,10 +311,10 @@ class DatabaseManager {
         return null;
     }
 
-    // Listar todas as configurações
-    async getAllDbConfigs() {
-        const sql = `SELECT * FROM db_configs WHERE is_active = 1 ORDER BY updated_at DESC`;
-        const rows = await this.all(sql);
+    // Listar todas as configurações por projeto
+    async getAllDbConfigs(projectId = 1) {
+        const sql = `SELECT * FROM db_configs WHERE project_id = ? AND is_active = 1 ORDER BY updated_at DESC`;
+        const rows = await this.all(sql, [projectId]);
 
         return rows.map(row => ({
             id: row.id,
@@ -244,17 +330,18 @@ class DatabaseManager {
     }
 
     // Salvar histórico de comparação
-    async saveComparisonHistory(db1Name, db2Name, comparisonData, db1DisplayName = null, db2DisplayName = null) {
+    async saveComparisonHistory(db1Name, db2Name, comparisonData, db1DisplayName = null, db2DisplayName = null, projectId = 1) {
         const totalTables = comparisonData.length;
         const differentTables = comparisonData.filter(item => item.different).length;
         const sameTables = comparisonData.filter(item => !item.different && item.exists1 && item.exists2).length;
         const missingTables = comparisonData.filter(item => !item.exists1 || !item.exists2).length;
 
         const sql = `INSERT INTO comparison_history 
-                     (db1_name, db2_name, db1_display_name, db2_display_name, total_tables, different_tables, same_tables, missing_tables, comparison_data) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                     (project_id, db1_name, db2_name, db1_display_name, db2_display_name, total_tables, different_tables, same_tables, missing_tables, comparison_data) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
         const params = [
+            projectId,
             db1Name,
             db2Name,
             db1DisplayName,
@@ -269,13 +356,14 @@ class DatabaseManager {
         return await this.run(sql, params);
     }
 
-    // Buscar histórico de comparações
-    async getComparisonHistory(limit = 10) {
+    // Buscar histórico de comparações por projeto
+    async getComparisonHistory(projectId = 1, limit = 10) {
         const sql = `SELECT * FROM comparison_history 
+                     WHERE project_id = ?
                      ORDER BY created_at DESC 
                      LIMIT ?`;
 
-        const rows = await this.all(sql, [limit]);
+        const rows = await this.all(sql, [projectId, limit]);
 
         return rows.map(row => ({
             id: row.id,
@@ -298,10 +386,10 @@ class DatabaseManager {
         return await this.run(sql, [id]);
     }
 
-    // Limpar todo o histórico de comparações
-    async clearAllComparisonHistory() {
-        const sql = `DELETE FROM comparison_history`;
-        return await this.run(sql);
+    // Limpar todo o histórico de comparações de um projeto
+    async clearAllComparisonHistory(projectId = 1) {
+        const sql = `DELETE FROM comparison_history WHERE project_id = ?`;
+        return await this.run(sql, [projectId]);
     }
 
     // Salvar configuração da aplicação
@@ -335,19 +423,20 @@ class DatabaseManager {
     }
 
     // Salvar cache de comparação de tabelas
-    async saveTableComparisonCache(db1Config, db2Config, comparisonData, db1DisplayName, db2DisplayName) {
+    async saveTableComparisonCache(db1Config, db2Config, comparisonData, db1DisplayName, db2DisplayName, projectId = 1) {
         // Limpar cache anterior para as mesmas configurações
-        await this.clearTableComparisonCache(db1Config, db2Config);
+        await this.clearTableComparisonCache(db1Config, db2Config, projectId);
 
         const db1Hash = this.generateConfigHash(db1Config);
         const db2Hash = this.generateConfigHash(db2Config);
         const totalTables = comparisonData.length;
 
         const sql = `INSERT INTO table_comparison_cache 
-                     (db1_config_hash, db2_config_hash, comparison_data, db1_display_name, db2_display_name, total_tables) 
-                     VALUES (?, ?, ?, ?, ?, ?)`;
+                     (project_id, db1_config_hash, db2_config_hash, comparison_data, db1_display_name, db2_display_name, total_tables) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?)`;
 
         const params = [
+            projectId,
             db1Hash,
             db2Hash,
             JSON.stringify(comparisonData),
@@ -360,16 +449,16 @@ class DatabaseManager {
     }
 
     // Buscar cache de comparação de tabelas
-    async getTableComparisonCache(db1Config, db2Config) {
+    async getTableComparisonCache(db1Config, db2Config, projectId = 1) {
         const db1Hash = this.generateConfigHash(db1Config);
         const db2Hash = this.generateConfigHash(db2Config);
 
         const sql = `SELECT * FROM table_comparison_cache 
-                     WHERE db1_config_hash = ? AND db2_config_hash = ? 
+                     WHERE project_id = ? AND db1_config_hash = ? AND db2_config_hash = ? 
                      ORDER BY created_at DESC 
                      LIMIT 1`;
 
-        const row = await this.get(sql, [db1Hash, db2Hash]);
+        const row = await this.get(sql, [projectId, db1Hash, db2Hash]);
 
         if (row) {
             return {
@@ -386,20 +475,67 @@ class DatabaseManager {
     }
 
     // Limpar cache de comparação de tabelas para configurações específicas
-    async clearTableComparisonCache(db1Config, db2Config) {
+    async clearTableComparisonCache(db1Config, db2Config, projectId = 1) {
         const db1Hash = this.generateConfigHash(db1Config);
         const db2Hash = this.generateConfigHash(db2Config);
 
         const sql = `DELETE FROM table_comparison_cache 
-                     WHERE db1_config_hash = ? AND db2_config_hash = ?`;
+                     WHERE project_id = ? AND db1_config_hash = ? AND db2_config_hash = ?`;
 
-        return await this.run(sql, [db1Hash, db2Hash]);
+        return await this.run(sql, [projectId, db1Hash, db2Hash]);
     }
 
-    // Limpar todo o cache de comparação (opcional)
-    async clearAllTableComparisonCache() {
-        const sql = `DELETE FROM table_comparison_cache`;
-        return await this.run(sql);
+    // Limpar todo o cache de comparação de um projeto
+    async clearAllTableComparisonCache(projectId = 1) {
+        const sql = `DELETE FROM table_comparison_cache WHERE project_id = ?`;
+        return await this.run(sql, [projectId]);
+    }
+
+    // === MÉTODOS PARA FILTROS DE TABELAS ===
+
+    // Salvar filtros de uma tabela e banco específicos
+    async saveTableFilters(projectId, tableName, database, filters) {
+        const sql = `INSERT OR REPLACE INTO table_filters 
+                     (project_id, table_name, database, filters_data, updated_at) 
+                     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+
+        const filtersJson = JSON.stringify(filters);
+        return await this.run(sql, [projectId, tableName, database, filtersJson]);
+    }
+
+    // Buscar filtros salvos para uma tabela e banco específicos
+    async getTableFilters(projectId, tableName, database) {
+        const sql = `SELECT filters_data FROM table_filters 
+                     WHERE project_id = ? AND table_name = ? AND database = ?`;
+
+        const row = await this.get(sql, [projectId, tableName, database]);
+
+        if (row) {
+            try {
+                return JSON.parse(row.filters_data);
+            } catch (error) {
+                console.error('Erro ao parsear filtros salvos:', error);
+                return [];
+            }
+        }
+
+        return [];
+    }
+
+    // Limpar filtros salvos de uma tabela específica
+    async clearTableFilters(projectId, tableName) {
+        const sql = `DELETE FROM table_filters 
+                     WHERE project_id = ? AND table_name = ?`;
+        return await this.run(sql, [projectId, tableName]);
+    }
+
+    // Listar todas as tabelas com filtros salvos para um projeto
+    async getTablesWithFilters(projectId) {
+        const sql = `SELECT DISTINCT table_name, database, updated_at 
+                     FROM table_filters 
+                     WHERE project_id = ? 
+                     ORDER BY updated_at DESC`;
+        return await this.all(sql, [projectId]);
     }
 
     // Fechar conexão com o banco

@@ -1,0 +1,25 @@
+{
+  ".gitignore",
+  ".treeignore",
+  "MIGRATION.md",
+  "PROJETOS.md",
+  "README.md",
+  "SQLITE.md",
+  "compare.html",
+  "config.html",
+  "database-example.sql",
+  "database.js",
+  "history.html",
+  "index.html",
+  "main.js",
+  "package-lock.json",
+  "package.json",
+  "projects.html",
+  "records-compare.html",
+  "renderer.js",
+  "styles.css",
+  "tree-output.json",
+  "assets": {
+    "icon.png"
+  }
+}

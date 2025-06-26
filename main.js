@@ -628,7 +628,10 @@ ipcMain.handle('search-table-records', async (event, { tableName, database, filt
             port: dbConfig.port,
             user: dbConfig.user,
             password: dbConfig.password,
-            database: dbConfig.database
+            database: dbConfig.database,
+            // ========= CORREÇÃO PARA BIGINT - EVITAR PERDA DE PRECISÃO =========
+            supportBigNumbers: true,
+            bigNumberStrings: true
         };
 
         const conn = await mysql.createConnection(mysqlConfig);
@@ -665,11 +668,12 @@ ipcMain.handle('search-table-records', async (event, { tableName, database, filt
                         condition = `\`${filter.field}\` ${filter.operator} ?`;
 
                         // ========= TRATAMENTO AUTOMÁTICO DE TIPOS BIGINT =========
-                        // Converter campos BIGINT para string para preservar precisão numérica
+                        // Com bigNumberStrings=true, BIGINT já vem como string do MySQL
+                        // Garantir que valores BIGINT sejam tratados como string
                         let paramValue = filter.value;
                         if (bigintColumns.includes(filter.field) && typeof paramValue === 'number') {
                             paramValue = paramValue.toString();
-                            console.log(`🔢 AUTO-CORREÇÃO BIGINT BUSCA: ${filter.field} ${filter.value} → STRING "${paramValue}"`);
+                            console.log(`🔢 DRIVER MYSQL: Campo BIGINT ${filter.field} convertido para STRING "${paramValue}"`);
                         }
                         params.push(paramValue);
                     }
@@ -702,6 +706,22 @@ ipcMain.handle('search-table-records', async (event, { tableName, database, filt
         });
 
         const [records] = await conn.execute(query, params);
+
+        // ========= DEBUG DOS REGISTROS RETORNADOS =========
+        if (records.length > 0 && records[0].bancoDados) {
+            console.log(`🔬 ANÁLISE DOS REGISTROS RETORNADOS:`);
+            console.log(`📊 Total de registros retornados: ${records.length}`);
+            console.log(`🔍 Primeiro registro - bancoDados: ${records[0].bancoDados} (${typeof records[0].bancoDados})`);
+            console.log(`🔍 Valor como STRING: "${records[0].bancoDados.toString()}"`);
+
+            // Verificar se algum parâmetro da busca corresponde ao bancoDados retornado
+            params.forEach((param, index) => {
+                if (typeof param === 'string' && param.length > 15) {
+                    const matches = param === records[0].bancoDados.toString();
+                    console.log(`🔍 Parâmetro ${index} "${param}" ${matches ? '✅ MATCH' : '❌ DIVERGE'} bancoDados "${records[0].bancoDados}"`);
+                }
+            });
+        }
 
         await conn.end();
 
@@ -871,7 +891,10 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
             port: dbConfig.port,
             user: dbConfig.user,
             password: dbConfig.password,
-            database: dbConfig.database
+            database: dbConfig.database,
+            // ========= CORREÇÃO PARA BIGINT - EVITAR PERDA DE PRECISÃO =========
+            supportBigNumbers: true,
+            bigNumberStrings: true
         };
 
         conn = await mysql.createConnection(mysqlConfig);
@@ -1010,11 +1033,12 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
                     let value = record[col];
 
                     // ========= TRATAMENTO AUTOMÁTICO DE TIPOS BIGINT =========
-                    // Converter campos BIGINT para string para preservar precisão numérica
+                    // Com bigNumberStrings=true, o driver MySQL2 já retorna BIGINT como string
+                    // Garantir que valores BIGINT sejam enviados como string
                     if (bigintColumns.includes(col) && typeof value === 'number') {
                         const originalValue = value;
                         value = value.toString();
-                        console.log(`🔢 AUTO-CORREÇÃO BIGINT: ${col} ${originalValue} → STRING "${value}"`);
+                        console.log(`🔢 DRIVER MYSQL: Campo BIGINT ${col} ${originalValue} → STRING "${value}"`);
                     }
 
                     // ========= PRESERVAÇÃO DE FORMATO DE DATAS =========
@@ -1225,7 +1249,8 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
 
                     // Verificar se existe algum registro com o bancoDados da busca original
                     const originalBancoDados = '533451641457980538'; // Valor usado na busca
-                    const [originalCountResult] = await conn.execute(countQuery, [originalBancoDados]);
+                    const originalQuery = `SELECT COUNT(*) as total FROM \`${tableName}\` WHERE \`bancoDados\` = ?`;
+                    const [originalCountResult] = await conn.execute(originalQuery, [originalBancoDados]);
                     console.log(`📊 Total de registros com bancoDados original '${originalBancoDados}': ${originalCountResult[0].total}`);
 
                     console.log(`🏁 === FIM VERIFICAÇÃO DETALHADA ===\n`);
@@ -1298,6 +1323,38 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
         const [originalResult] = await conn.execute(originalQuery, [originalBancoDados]);
         console.log(`🔍 Registros com bancoDados '${originalBancoDados}' (valor da busca): ${originalResult[0].total}`);
 
+        // ========= TESTE DE VALIDAÇÃO BIGINT =========
+        console.log(`\n🧪 === TESTE DE VALIDAÇÃO BIGINT ===`);
+
+        if (bigintColumns.includes('bancoDados') && records.length > 0) {
+            const testBancoDados = originalBancoDados;
+
+            // Teste: Busca com driver MySQL2 configurado (bigNumberStrings=true)
+            const normalQuery = `SELECT COUNT(*) as total FROM \`${tableName}\` WHERE bancoDados = ?`;
+            const [normalResult] = await conn.execute(normalQuery, [testBancoDados]);
+            console.log(`🔢 TESTE com Driver MySQL2: bancoDados = '${testBancoDados}' → ${normalResult[0].total} registros`);
+
+            // Verificar os registros recém-inseridos
+            if (records.length > 0) {
+                const insertedRecord = records[0].sourceRecord;
+                if (insertedRecord && insertedRecord.bancoDados) {
+                    const insertedValue = insertedRecord.bancoDados.toString();
+
+                    const insertedQuery = `SELECT COUNT(*) as total FROM \`${tableName}\` WHERE bancoDados = ?`;
+                    const [insertedResult] = await conn.execute(insertedQuery, [insertedValue]);
+                    console.log(`🎯 TESTE Inserido: bancoDados = '${insertedValue}' → ${insertedResult[0].total} registros`);
+
+                    // Comparar strings diretamente (mais preciso)
+                    const valuesMatch = testBancoDados === insertedValue;
+                    console.log(`📊 ANÁLISE DE PRECISÃO:`);
+                    console.log(`   Busca original: "${testBancoDados}"`);
+                    console.log(`   Valor inserido: "${insertedValue}"`);
+                    console.log(`   ${valuesMatch ? '✅ STRINGS IDÊNTICAS - SEM PERDA DE PRECISÃO' : '❌ STRINGS DIFERENTES - PERDA DE PRECISÃO DETECTADA'}`);
+                }
+            }
+        }
+
+        console.log(`🏁 === FIM TESTE VALIDAÇÃO ===`);
         console.log(`🏁 === FIM VERIFICAÇÃO FINAL ===\n`);
 
         console.log(`\n🎯 === RESUMO FINAL DO ENVIO ===`);

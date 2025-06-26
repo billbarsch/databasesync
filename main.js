@@ -411,6 +411,28 @@ ipcMain.handle('get-comparison-history', async (event, limit = 10) => {
     }
 });
 
+ipcMain.handle('delete-comparison-history', async (event, id) => {
+    try {
+        const result = await dbManager.deleteComparisonHistory(id);
+        console.log(`🗑️ Histórico ${id} excluído: ${result.changes} linha(s) afetada(s)`);
+        return { success: true, deletedRows: result.changes };
+    } catch (error) {
+        console.error('❌ Erro ao excluir histórico:', error);
+        return { success: false, message: error.message };
+    }
+});
+
+ipcMain.handle('clear-all-comparison-history', async () => {
+    try {
+        const result = await dbManager.clearAllComparisonHistory();
+        console.log(`🗑️ Todo o histórico limpo: ${result.changes} linha(s) removida(s)`);
+        return { success: true, deletedRows: result.changes };
+    } catch (error) {
+        console.error('❌ Erro ao limpar histórico:', error);
+        return { success: false, message: error.message };
+    }
+});
+
 ipcMain.handle('get-all-db-configs', async () => {
     try {
         const configs = await dbManager.getAllDbConfigs();

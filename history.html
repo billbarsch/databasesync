@@ -30,6 +30,11 @@
                         <i class="icon">📥</i>
                         Exportar
                     </button>
+
+                    <button class="btn btn-danger" onclick="clearAllHistory()">
+                        <i class="icon">🗑️</i>
+                        Limpar Tudo
+                    </button>
                 </div>
 
                 <div class="toolbar-right">
@@ -157,9 +162,13 @@
                         </div>
                         
                         <div class="history-action">
-                            <button class="btn btn-small">
+                            <button class="btn btn-small" onclick="event.stopPropagation(); showDetails(${index})">
                                 <i class="icon">👁️</i>
                                 Ver Detalhes
+                            </button>
+                            <button class="btn btn-small btn-danger" onclick="event.stopPropagation(); deleteHistory(${index})" title="Excluir este histórico">
+                                <i class="icon">🗑️</i>
+                                Excluir
                             </button>
                         </div>
                     </div>
@@ -275,6 +284,96 @@
         function exportHistory() {
             // Implementar exportação do histórico
             alert('Funcionalidade de exportação será implementada em breve!');
+        }
+
+        async function deleteHistory(index) {
+            const item = historyData[index];
+            const date = new Date(item.createdAt);
+            const formattedDate = date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR');
+
+            const confirmation = confirm(
+                `Tem certeza que deseja excluir este histórico?\n\n` +
+                `Comparação: ${item.db1DisplayName} ⚡ ${item.db2DisplayName}\n` +
+                `Data: ${formattedDate}\n` +
+                `Tabelas: ${item.totalTables} (${item.differentTables} diferentes)\n\n` +
+                `Esta ação não pode ser desfeita.`
+            );
+
+            if (!confirmation) {
+                return;
+            }
+
+            try {
+                // Mostrar loading
+                showLoading(true);
+
+                const result = await ipcRenderer.invoke('delete-comparison-history', item.id);
+
+                if (result.success) {
+                    // Remover da lista local
+                    historyData.splice(index, 1);
+
+                    // Atualizar a exibição
+                    displayHistory();
+                    showLoading(false);
+
+                    // Mostrar mensagem de sucesso
+                    alert('Histórico excluído com sucesso!');
+                } else {
+                    showLoading(false);
+                    alert('Erro ao excluir histórico: ' + result.message);
+                }
+            } catch (error) {
+                showLoading(false);
+                alert('Erro ao excluir histórico: ' + error.message);
+            }
+        }
+
+        async function clearAllHistory() {
+            if (historyData.length === 0) {
+                alert('Não há histórico para limpar.');
+                return;
+            }
+
+            const confirmation = confirm(
+                `Tem certeza que deseja excluir TODOS os ${historyData.length} históricos de comparação?\n\n` +
+                `Esta ação não pode ser desfeita e removerá permanentemente todos os dados do histórico.`
+            );
+
+            if (!confirmation) {
+                return;
+            }
+
+            // Segunda confirmação para ação crítica
+            const finalConfirmation = confirm(
+                `⚠️ CONFIRMAÇÃO FINAL ⚠️\n\n` +
+                `Você está prestes a excluir TODOS os históricos.\n` +
+                `Esta é uma ação irreversível.\n\n` +
+                `Clique "OK" para confirmar a exclusão total ou "Cancelar" para abortar.`
+            );
+
+            if (!finalConfirmation) {
+                return;
+            }
+
+            try {
+                showLoading(true);
+
+                const result = await ipcRenderer.invoke('clear-all-comparison-history');
+
+                if (result.success) {
+                    historyData = [];
+                    displayHistory();
+                    showLoading(false);
+                    alert(`✅ Todos os históricos foram excluídos com sucesso!\n${result.deletedRows} registro(s) removido(s).`);
+                } else {
+                    showLoading(false);
+                    alert('Erro ao limpar histórico: ' + result.message);
+                }
+            } catch (error) {
+                showLoading(false);
+                alert('Erro ao limpar histórico: ' + error.message);
+            }
         }
 
         function showLoading(show) {

@@ -292,6 +292,18 @@ class DatabaseManager {
         }));
     }
 
+    // Excluir histórico de comparação
+    async deleteComparisonHistory(id) {
+        const sql = `DELETE FROM comparison_history WHERE id = ?`;
+        return await this.run(sql, [id]);
+    }
+
+    // Limpar todo o histórico de comparações
+    async clearAllComparisonHistory() {
+        const sql = `DELETE FROM comparison_history`;
+        return await this.run(sql);
+    }
+
     // Salvar configuração da aplicação
     async setSetting(key, value) {
         const sql = `INSERT OR REPLACE INTO app_settings (key, value, updated_at) 

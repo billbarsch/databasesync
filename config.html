@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurar Conexões - Database Sync</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <i class="icon">⚙️</i>
+                Configurar Conexões
+            </h1>
+            <p class="subtitle">Configure as conexões com os bancos de dados MySQL</p>
+        </header>
+
+        <main>
+            <div class="config-section">
+                <div class="config-grid">
+                    <!-- Banco de Dados 1 -->
+                    <div class="config-card">
+                        <h2>Banco de Dados 1</h2>
+                        <form id="form1">
+                            <div class="form-group">
+                                <label for="host1">Servidor (Host):</label>
+                                <input type="text" id="host1" name="host" placeholder="localhost" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="port1">Porta:</label>
+                                <input type="number" id="port1" name="port" placeholder="3306" value="3306" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="user1">Usuário:</label>
+                                <input type="text" id="user1" name="user" placeholder="root" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="password1">Senha:</label>
+                                <input type="password" id="password1" name="password" placeholder="********">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="database1">Banco de Dados:</label>
+                                <input type="text" id="database1" name="database" placeholder="nome_do_banco" required>
+                            </div>
+
+                            <button type="button" class="btn btn-test" onclick="testConnection(1)">
+                                <i class="icon">🔗</i>
+                                Testar Conexão
+                            </button>
+
+                            <div id="status1" class="status-message"></div>
+                        </form>
+                    </div>
+
+                    <!-- Banco de Dados 2 -->
+                    <div class="config-card">
+                        <h2>Banco de Dados 2</h2>
+                        <form id="form2">
+                            <div class="form-group">
+                                <label for="host2">Servidor (Host):</label>
+                                <input type="text" id="host2" name="host" placeholder="localhost" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="port2">Porta:</label>
+                                <input type="number" id="port2" name="port" placeholder="3306" value="3306" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="user2">Usuário:</label>
+                                <input type="text" id="user2" name="user" placeholder="root" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="password2">Senha:</label>
+                                <input type="password" id="password2" name="password" placeholder="********">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="database2">Banco de Dados:</label>
+                                <input type="text" id="database2" name="database" placeholder="nome_do_banco" required>
+                            </div>
+
+                            <button type="button" class="btn btn-test" onclick="testConnection(2)">
+                                <i class="icon">🔗</i>
+                                Testar Conexão
+                            </button>
+
+                            <div id="status2" class="status-message"></div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions-section">
+                <div class="card">
+                    <div class="button-group">
+                        <button class="btn btn-secondary" onclick="window.close()">
+                            <i class="icon">❌</i>
+                            Cancelar
+                        </button>
+
+                        <button class="btn btn-primary" onclick="saveConfig()">
+                            <i class="icon">💾</i>
+                            Salvar Configurações
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        let connection1Valid = false;
+        let connection2Valid = false;
+
+        // Carregar configurações existentes
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const { config1, config2 } = await ipcRenderer.invoke('get-config');
+
+                if (config1) {
+                    document.getElementById('host1').value = config1.host || '';
+                    document.getElementById('port1').value = config1.port || '3306';
+                    document.getElementById('user1').value = config1.user || '';
+                    document.getElementById('password1').value = config1.password || '';
+                    document.getElementById('database1').value = config1.database || '';
+                }
+
+                if (config2) {
+                    document.getElementById('host2').value = config2.host || '';
+                    document.getElementById('port2').value = config2.port || '3306';
+                    document.getElementById('user2').value = config2.user || '';
+                    document.getElementById('password2').value = config2.password || '';
+                    document.getElementById('database2').value = config2.database || '';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar configurações:', error);
+            }
+        });
+
+        async function testConnection(dbNumber) {
+            const form = document.getElementById(`form${dbNumber}`);
+            const statusDiv = document.getElementById(`status${dbNumber}`);
+            const formData = new FormData(form);
+
+            const config = {
+                host: formData.get('host'),
+                port: parseInt(formData.get('port')),
+                user: formData.get('user'),
+                password: formData.get('password'),
+                database: formData.get('database')
+            };
+
+            statusDiv.innerHTML = '<div class="loading">Testando conexão...</div>';
+
+            try {
+                const result = await ipcRenderer.invoke('test-connection', config);
+
+                if (result.success) {
+                    statusDiv.innerHTML = `<div class="success">✅ ${result.message}</div>`;
+                    if (dbNumber === 1) connection1Valid = true;
+                    if (dbNumber === 2) connection2Valid = true;
+                } else {
+                    statusDiv.innerHTML = `<div class="error">❌ Erro: ${result.message}</div>`;
+                    if (dbNumber === 1) connection1Valid = false;
+                    if (dbNumber === 2) connection2Valid = false;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="error">❌ Erro inesperado: ${error.message}</div>`;
+                if (dbNumber === 1) connection1Valid = false;
+                if (dbNumber === 2) connection2Valid = false;
+            }
+        }
+
+        async function saveConfig() {
+            const form1 = document.getElementById('form1');
+            const form2 = document.getElementById('form2');
+            const formData1 = new FormData(form1);
+            const formData2 = new FormData(form2);
+
+            const config1 = {
+                host: formData1.get('host'),
+                port: parseInt(formData1.get('port')),
+                user: formData1.get('user'),
+                password: formData1.get('password'),
+                database: formData1.get('database')
+            };
+
+            const config2 = {
+                host: formData2.get('host'),
+                port: parseInt(formData2.get('port')),
+                user: formData2.get('user'),
+                password: formData2.get('password'),
+                database: formData2.get('database')
+            };
+
+            // Validar se os campos obrigatórios estão preenchidos
+            if (!config1.host || !config1.user || !config1.database) {
+                alert('Por favor, preencha todos os campos obrigatórios do Banco 1');
+                return;
+            }
+
+            if (!config2.host || !config2.user || !config2.database) {
+                alert('Por favor, preencha todos os campos obrigatórios do Banco 2');
+                return;
+            }
+
+            try {
+                await ipcRenderer.invoke('save-config', config1, config2);
+                alert('Configurações salvas com sucesso!');
+                window.close();
+            } catch (error) {
+                alert('Erro ao salvar configurações: ' + error.message);
+            }
+        }
+    </script>
+</body>
+
+</html>

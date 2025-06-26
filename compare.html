@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparação de Tabelas - Database Sync</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <i class="icon">📊</i>
+                Comparação de Tabelas
+            </h1>
+            <p class="subtitle">Compare as tabelas e registros entre os bancos de dados</p>
+        </header>
+
+        <main>
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <button class="btn btn-primary" onclick="refreshComparison()">
+                        <i class="icon">🔄</i>
+                        Atualizar
+                    </button>
+
+                    <div class="filter-group">
+                        <label for="filter-select">Filtrar:</label>
+                        <select id="filter-select" onchange="filterTables()">
+                            <option value="all">Todas as tabelas</option>
+                            <option value="different">Apenas diferentes</option>
+                            <option value="same">Apenas iguais</option>
+                            <option value="missing">Tabelas faltantes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="toolbar-right">
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color different"></div>
+                            <span>Diferentes</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color same"></div>
+                            <span>Iguais</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color missing"></div>
+                            <span>Faltante</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comparison-section">
+                <div id="loading" class="loading-section" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p>Carregando comparação...</p>
+                </div>
+
+                <div id="comparison-header" class="comparison-header" style="display: none;">
+                    <div class="db-header">
+                        <h2 id="db1-name">Banco 1</h2>
+                        <div id="db1-stats" class="db-stats"></div>
+                    </div>
+                    <div class="db-header">
+                        <h2 id="db2-name">Banco 2</h2>
+                        <div id="db2-stats" class="db-stats"></div>
+                    </div>
+                </div>
+
+                <div id="comparison-table" class="comparison-table">
+                    <!-- Tabela de comparação será inserida aqui -->
+                </div>
+
+                <div id="no-data" class="no-data" style="display: none;">
+                    <i class="icon">❌</i>
+                    <p>Nenhum dado disponível para comparação</p>
+                    <p>Verifique as configurações de conexão</p>
+                </div>
+            </div>
+
+            <div class="summary-section">
+                <div class="card">
+                    <h3>Resumo da Comparação</h3>
+                    <div id="summary-stats" class="summary-stats">
+                        <!-- Estatísticas serão inseridas aqui -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        let comparisonData = [];
+        let filteredData = [];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadComparison();
+        });
+
+        async function loadComparison() {
+            showLoading(true);
+
+            try {
+                const result = await ipcRenderer.invoke('get-tables-comparison');
+
+                if (result.success) {
+                    comparisonData = result.data;
+                    document.getElementById('db1-name').textContent = result.db1Name;
+                    document.getElementById('db2-name').textContent = result.db2Name;
+
+                    displayComparison();
+                    updateSummary();
+                    showLoading(false);
+                } else {
+                    showError(result.message);
+                }
+            } catch (error) {
+                showError('Erro ao carregar comparação: ' + error.message);
+            }
+        }
+
+        function displayComparison() {
+            const table = document.getElementById('comparison-table');
+            const header = document.getElementById('comparison-header');
+
+            if (comparisonData.length === 0) {
+                document.getElementById('no-data').style.display = 'block';
+                header.style.display = 'none';
+                return;
+            }
+
+            header.style.display = 'grid';
+            document.getElementById('no-data').style.display = 'none';
+
+            // Filtrar dados se necessário
+            filterTables();
+
+            let html = `
+                <div class="table-header">
+                    <div class="table-name-header">Nome da Tabela</div>
+                    <div class="table-count-header">Registros ${document.getElementById('db1-name').textContent}</div>
+                    <div class="table-count-header">Registros ${document.getElementById('db2-name').textContent}</div>
+                    <div class="table-status-header">Status</div>
+                </div>
+            `;
+
+            filteredData.forEach(item => {
+                const rowClass = getRowClass(item);
+                const statusText = getStatusText(item);
+                const statusIcon = getStatusIcon(item);
+
+                html += `
+                    <div class="table-row ${rowClass}">
+                        <div class="table-name">
+                            <i class="table-icon">📄</i>
+                            ${item.tableName}
+                        </div>
+                        <div class="table-count ${item.exists1 ? '' : 'missing'}">
+                            ${item.exists1 ? item.count1.toLocaleString() : 'N/A'}
+                        </div>
+                        <div class="table-count ${item.exists2 ? '' : 'missing'}">
+                            ${item.exists2 ? item.count2.toLocaleString() : 'N/A'}
+                        </div>
+                        <div class="table-status">
+                            <span class="status-icon">${statusIcon}</span>
+                            <span class="status-text">${statusText}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            table.innerHTML = html;
+        }
+
+        function getRowClass(item) {
+            if (!item.exists1 || !item.exists2) return 'missing-table';
+            if (item.different) return 'different-count';
+            return 'same-count';
+        }
+
+        function getStatusText(item) {
+            if (!item.exists1) return 'Faltante no BD1';
+            if (!item.exists2) return 'Faltante no BD2';
+            if (item.different) return `Diferença: ${Math.abs(item.count1 - item.count2).toLocaleString()}`;
+            return 'Igual';
+        }
+
+        function getStatusIcon(item) {
+            if (!item.exists1 || !item.exists2) return '❌';
+            if (item.different) return '⚠️';
+            return '✅';
+        }
+
+        function filterTables() {
+            const filterValue = document.getElementById('filter-select').value;
+
+            switch (filterValue) {
+                case 'different':
+                    filteredData = comparisonData.filter(item => item.different);
+                    break;
+                case 'same':
+                    filteredData = comparisonData.filter(item => !item.different && item.exists1 && item.exists2);
+                    break;
+                case 'missing':
+                    filteredData = comparisonData.filter(item => !item.exists1 || !item.exists2);
+                    break;
+                default:
+                    filteredData = comparisonData;
+                    break;
+            }
+
+            displayFilteredData();
+        }
+
+        function displayFilteredData() {
+            const table = document.getElementById('comparison-table');
+
+            if (filteredData.length === 0) {
+                table.innerHTML = '<div class="no-results">Nenhuma tabela encontrada com os filtros aplicados</div>';
+                return;
+            }
+
+            let html = `
+                <div class="table-header">
+                    <div class="table-name-header">Nome da Tabela</div>
+                    <div class="table-count-header">Registros ${document.getElementById('db1-name').textContent}</div>
+                    <div class="table-count-header">Registros ${document.getElementById('db2-name').textContent}</div>
+                    <div class="table-status-header">Status</div>
+                </div>
+            `;
+
+            filteredData.forEach(item => {
+                const rowClass = getRowClass(item);
+                const statusText = getStatusText(item);
+                const statusIcon = getStatusIcon(item);
+
+                html += `
+                    <div class="table-row ${rowClass}">
+                        <div class="table-name">
+                            <i class="table-icon">📄</i>
+                            ${item.tableName}
+                        </div>
+                        <div class="table-count ${item.exists1 ? '' : 'missing'}">
+                            ${item.exists1 ? item.count1.toLocaleString() : 'N/A'}
+                        </div>
+                        <div class="table-count ${item.exists2 ? '' : 'missing'}">
+                            ${item.exists2 ? item.count2.toLocaleString() : 'N/A'}
+                        </div>
+                        <div class="table-status">
+                            <span class="status-icon">${statusIcon}</span>
+                            <span class="status-text">${statusText}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            table.innerHTML = html;
+        }
+
+        function updateSummary() {
+            const totalTables = comparisonData.length;
+            const differentTables = comparisonData.filter(item => item.different).length;
+            const sameTables = comparisonData.filter(item => !item.different && item.exists1 && item.exists2).length;
+            const missingTables = comparisonData.filter(item => !item.exists1 || !item.exists2).length;
+
+            const summaryHtml = `
+                <div class="stat-item">
+                    <div class="stat-number">${totalTables}</div>
+                    <div class="stat-label">Total de Tabelas</div>
+                </div>
+                <div class="stat-item different">
+                    <div class="stat-number">${differentTables}</div>
+                    <div class="stat-label">Diferentes</div>
+                </div>
+                <div class="stat-item same">
+                    <div class="stat-number">${sameTables}</div>
+                    <div class="stat-label">Iguais</div>
+                </div>
+                <div class="stat-item missing">
+                    <div class="stat-number">${missingTables}</div>
+                    <div class="stat-label">Faltantes</div>
+                </div>
+            `;
+
+            document.getElementById('summary-stats').innerHTML = summaryHtml;
+        }
+
+        function refreshComparison() {
+            loadComparison();
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.getElementById('comparison-table').style.display = show ? 'none' : 'block';
+        }
+
+        function showError(message) {
+            showLoading(false);
+            document.getElementById('no-data').style.display = 'block';
+            document.getElementById('no-data').innerHTML = `
+                <i class="icon">❌</i>
+                <p>Erro ao carregar dados</p>
+                <p>${message}</p>
+            `;
+        }
+    </script>
+</body>
+
+</html>

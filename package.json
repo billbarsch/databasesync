@@ -1,0 +1,56 @@
+{
+    "name": "databasesync",
+    "version": "1.0.0",
+    "description": "Aplicação para sincronização e comparação de bancos de dados MySQL",
+    "main": "main.js",
+    "scripts": {
+        "start": "electron .",
+        "build": "electron-builder",
+        "build-win": "electron-builder --win",
+        "dev": "electron . --dev"
+    },
+    "keywords": [
+        "electron",
+        "mysql",
+        "database",
+        "sync"
+    ],
+    "author": "Desenvolvedor",
+    "license": "MIT",
+    "devDependencies": {
+        "electron": "^27.0.0",
+        "electron-builder": "^24.6.4"
+    },
+    "dependencies": {
+        "mysql2": "^3.6.3",
+        "sqlite3": "^5.1.6"
+    },
+    "build": {
+        "appId": "com.databasesync.app",
+        "productName": "Database Sync",
+        "directories": {
+            "output": "dist"
+        },
+        "files": [
+            "**/*",
+            "!node_modules/*/{README.md,LICENSE,*.md}",
+            "!node_modules/.cache",
+            "!**/*.{o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}"
+        ],
+        "win": {
+            "target": {
+                "target": "nsis",
+                "arch": [
+                    "x64"
+                ]
+            },
+            "icon": "assets/icon.ico"
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true
+        }
+    }
+}

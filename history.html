@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico de Comparações - Database Sync</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <i class="icon">📈</i>
+                Histórico de Comparações
+            </h1>
+            <p class="subtitle">Visualize todas as comparações realizadas anteriormente</p>
+        </header>
+
+        <main>
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <button class="btn btn-primary" onclick="refreshHistory()">
+                        <i class="icon">🔄</i>
+                        Atualizar
+                    </button>
+
+                    <button class="btn btn-secondary" onclick="exportHistory()">
+                        <i class="icon">📥</i>
+                        Exportar
+                    </button>
+                </div>
+
+                <div class="toolbar-right">
+                    <div class="filter-group">
+                        <label for="limit-select">Mostrar:</label>
+                        <select id="limit-select" onchange="refreshHistory()">
+                            <option value="10">Últimas 10</option>
+                            <option value="25">Últimas 25</option>
+                            <option value="50">Últimas 50</option>
+                            <option value="100">Últimas 100</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="history-section">
+                <div id="loading" class="loading-section" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p>Carregando histórico...</p>
+                </div>
+
+                <div id="history-list" class="history-list">
+                    <!-- Lista de histórico será inserida aqui -->
+                </div>
+
+                <div id="no-data" class="no-data" style="display: none;">
+                    <i class="icon">📋</i>
+                    <p>Nenhum histórico de comparação encontrado</p>
+                    <p>Execute algumas comparações para ver o histórico aqui</p>
+                </div>
+            </div>
+
+            <!-- Modal para detalhes da comparação -->
+            <div id="detail-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Detalhes da Comparação</h3>
+                        <button class="close-btn" onclick="closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="modal-details">
+                            <!-- Detalhes serão inseridos aqui -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        let historyData = [];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            refreshHistory();
+        });
+
+        async function refreshHistory() {
+            showLoading(true);
+
+            try {
+                const limit = parseInt(document.getElementById('limit-select').value);
+                const result = await ipcRenderer.invoke('get-comparison-history', limit);
+
+                if (result.success) {
+                    historyData = result.data;
+                    displayHistory();
+                    showLoading(false);
+                } else {
+                    showError(result.message);
+                }
+            } catch (error) {
+                showError('Erro ao carregar histórico: ' + error.message);
+            }
+        }
+
+        function displayHistory() {
+            const historyList = document.getElementById('history-list');
+            const noData = document.getElementById('no-data');
+
+            if (historyData.length === 0) {
+                noData.style.display = 'block';
+                historyList.style.display = 'none';
+                return;
+            }
+
+            noData.style.display = 'none';
+            historyList.style.display = 'block';
+
+            let html = '';
+
+            historyData.forEach((item, index) => {
+                const date = new Date(item.createdAt);
+                const formattedDate = date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR');
+
+                const statusClass = item.differentTables > 0 ? 'has-differences' : 'no-differences';
+
+                html += `
+                    <div class="history-item ${statusClass}" onclick="showDetails(${index})">
+                        <div class="history-main">
+                            <div class="history-header">
+                                <h3>${item.db1Name} ⚡ ${item.db2Name}</h3>
+                                <span class="history-date">${formattedDate}</span>
+                            </div>
+                            
+                            <div class="history-stats">
+                                <div class="stat-item">
+                                    <span class="stat-number">${item.totalTables}</span>
+                                    <span class="stat-label">Total</span>
+                                </div>
+                                <div class="stat-item ${item.differentTables > 0 ? 'different' : ''}">
+                                    <span class="stat-number">${item.differentTables}</span>
+                                    <span class="stat-label">Diferentes</span>
+                                </div>
+                                <div class="stat-item same">
+                                    <span class="stat-number">${item.sameTables}</span>
+                                    <span class="stat-label">Iguais</span>
+                                </div>
+                                <div class="stat-item ${item.missingTables > 0 ? 'missing' : ''}">
+                                    <span class="stat-number">${item.missingTables}</span>
+                                    <span class="stat-label">Faltantes</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="history-action">
+                            <button class="btn btn-small">
+                                <i class="icon">👁️</i>
+                                Ver Detalhes
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            historyList.innerHTML = html;
+        }
+
+        function showDetails(index) {
+            const item = historyData[index];
+            const modal = document.getElementById('detail-modal');
+            const modalDetails = document.getElementById('modal-details');
+
+            const date = new Date(item.createdAt);
+            const formattedDate = date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR');
+
+            let detailsHtml = `
+                <div class="comparison-info">
+                    <h4>Informações da Comparação</h4>
+                    <p><strong>Banco 1:</strong> ${item.db1Name}</p>
+                    <p><strong>Banco 2:</strong> ${item.db2Name}</p>
+                    <p><strong>Data:</strong> ${formattedDate}</p>
+                </div>
+
+                <div class="comparison-summary">
+                    <h4>Resumo</h4>
+                    <div class="summary-stats">
+                        <div class="stat-item">
+                            <div class="stat-number">${item.totalTables}</div>
+                            <div class="stat-label">Total de Tabelas</div>
+                        </div>
+                        <div class="stat-item different">
+                            <div class="stat-number">${item.differentTables}</div>
+                            <div class="stat-label">Diferentes</div>
+                        </div>
+                        <div class="stat-item same">
+                            <div class="stat-number">${item.sameTables}</div>
+                            <div class="stat-label">Iguais</div>
+                        </div>
+                        <div class="stat-item missing">
+                            <div class="stat-number">${item.missingTables}</div>
+                            <div class="stat-label">Faltantes</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="comparison-details">
+                    <h4>Detalhes das Tabelas</h4>
+                    <div class="table-details">
+                        <div class="table-header">
+                            <div class="table-name-header">Tabela</div>
+                            <div class="table-count-header">${item.db1Name}</div>
+                            <div class="table-count-header">${item.db2Name}</div>
+                            <div class="table-status-header">Status</div>
+                        </div>
+            `;
+
+            item.comparisonData.forEach(table => {
+                const rowClass = getRowClass(table);
+                const statusText = getStatusText(table);
+                const statusIcon = getStatusIcon(table);
+
+                detailsHtml += `
+                    <div class="table-row ${rowClass}">
+                        <div class="table-name">${table.tableName}</div>
+                        <div class="table-count ${table.exists1 ? '' : 'missing'}">
+                            ${table.exists1 ? table.count1.toLocaleString() : 'N/A'}
+                        </div>
+                        <div class="table-count ${table.exists2 ? '' : 'missing'}">
+                            ${table.exists2 ? table.count2.toLocaleString() : 'N/A'}
+                        </div>
+                        <div class="table-status">
+                            <span class="status-icon">${statusIcon}</span>
+                            <span class="status-text">${statusText}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            detailsHtml += `
+                    </div>
+                </div>
+            `;
+
+            modalDetails.innerHTML = detailsHtml;
+            modal.style.display = 'block';
+        }
+
+        function getRowClass(item) {
+            if (!item.exists1 || !item.exists2) return 'missing-table';
+            if (item.different) return 'different-count';
+            return 'same-count';
+        }
+
+        function getStatusText(item) {
+            if (!item.exists1) return 'Faltante no BD1';
+            if (!item.exists2) return 'Faltante no BD2';
+            if (item.different) return `Diferença: ${Math.abs(item.count1 - item.count2).toLocaleString()}`;
+            return 'Igual';
+        }
+
+        function getStatusIcon(item) {
+            if (!item.exists1 || !item.exists2) return '❌';
+            if (item.different) return '⚠️';
+            return '✅';
+        }
+
+        function closeModal() {
+            document.getElementById('detail-modal').style.display = 'none';
+        }
+
+        function exportHistory() {
+            // Implementar exportação do histórico
+            alert('Funcionalidade de exportação será implementada em breve!');
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.getElementById('history-list').style.display = show ? 'none' : 'block';
+        }
+
+        function showError(message) {
+            showLoading(false);
+            document.getElementById('no-data').style.display = 'block';
+            document.getElementById('no-data').innerHTML = `
+                <i class="icon">❌</i>
+                <p>Erro ao carregar histórico</p>
+                <p>${message}</p>
+            `;
+        }
+
+        // Fechar modal ao clicar fora dele
+        window.onclick = function (event) {
+            const modal = document.getElementById('detail-modal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+
+</html>

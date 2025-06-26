@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Sync - Sincronização de Bancos de Dados</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <i class="icon">🗄️</i>
+                Database Sync
+            </h1>
+            <p class="subtitle">Sincronização e Comparação de Bancos de Dados MySQL</p>
+        </header>
+
+        <main>
+            <div class="welcome-section">
+                <div class="card">
+                    <h2>Bem-vindo ao Database Sync</h2>
+                    <p>Esta aplicação permite conectar-se a dois bancos de dados MySQL e comparar suas tabelas lado a
+                        lado.</p>
+
+                    <div class="features">
+                        <div class="feature">
+                            <div class="feature-icon">⚙️</div>
+                            <h3>Configuração Fácil</h3>
+                            <p>Configure suas conexões de banco de dados com uma interface intuitiva</p>
+                        </div>
+
+                        <div class="feature">
+                            <div class="feature-icon">📊</div>
+                            <h3>Comparação Visual</h3>
+                            <p>Visualize as diferenças entre tabelas com cores e destaque</p>
+                        </div>
+
+                        <div class="feature">
+                            <div class="feature-icon">🔄</div>
+                            <h3>Sincronização</h3>
+                            <p>Mantenha seus bancos de dados sincronizados e atualizados</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions-section">
+                <div class="card">
+                    <h2>Primeiros Passos</h2>
+                    <div class="steps">
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h3>Configure as Conexões</h3>
+                                <p>Defina as configurações dos dois bancos de dados MySQL</p>
+                                <button class="btn btn-primary" onclick="openConfig()">
+                                    <i class="icon">⚙️</i>
+                                    Configurar Conexões
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h3>Compare as Tabelas</h3>
+                                <p>Visualize as diferenças entre os bancos de dados</p>
+                                <button class="btn btn-secondary" id="compare-btn" onclick="openCompare()" disabled>
+                                    <i class="icon">📊</i>
+                                    Comparar Tabelas
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h3>Visualize o Histórico</h3>
+                                <p>Consulte comparações realizadas anteriormente</p>
+                                <button class="btn btn-primary" onclick="openHistory()">
+                                    <i class="icon">📈</i>
+                                    Ver Histórico
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="card">
+                    <h2>Status das Conexões</h2>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-icon" id="status1">❌</div>
+                            <div class="status-content">
+                                <h3>Banco de Dados 1</h3>
+                                <p id="db1-info">Não configurado</p>
+                            </div>
+                        </div>
+
+                        <div class="status-item">
+                            <div class="status-icon" id="status2">❌</div>
+                            <div class="status-content">
+                                <h3>Banco de Dados 2</h3>
+                                <p id="db2-info">Não configurado</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+
+</html>

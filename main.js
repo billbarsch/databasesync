@@ -69,27 +69,43 @@ function createMainWindow() {
 }
 
 function openConfigWindow() {
+    console.log('🚀 Tentando abrir janela de configuração...');
+
     if (configWindow) {
+        console.log('⚡ Janela já existe, dando foco...');
         configWindow.focus();
         return;
     }
 
-    configWindow = new BrowserWindow({
-        width: 600,
-        height: 500,
-        parent: mainWindow,
-        modal: true,
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
-        }
-    });
+    try {
+        console.log('📱 Criando nova janela de configuração...');
+        configWindow = new BrowserWindow({
+            width: 600,
+            height: 500,
+            parent: mainWindow,
+            modal: true,
+            webPreferences: {
+                nodeIntegration: true,
+                contextIsolation: false
+            }
+        });
 
-    configWindow.loadFile('config.html');
+        console.log('📄 Carregando config.html...');
+        configWindow.loadFile('config.html');
 
-    configWindow.on('closed', () => {
-        configWindow = null;
-    });
+        configWindow.on('closed', () => {
+            console.log('❌ Janela de configuração fechada');
+            configWindow = null;
+        });
+
+        configWindow.on('ready-to-show', () => {
+            console.log('✅ Janela de configuração pronta e visível');
+        });
+
+        console.log('🎉 Janela de configuração criada com sucesso!');
+    } catch (error) {
+        console.error('❌ Erro ao criar janela de configuração:', error);
+    }
 }
 
 function openCompareWindow() {
@@ -235,18 +251,45 @@ ipcMain.handle('get-tables-comparison', async () => {
         await conn2.end();
 
         // Salvar no histórico
-        await dbManager.saveComparisonHistory(dbConfig1.database, dbConfig2.database, comparison);
+        await dbManager.saveComparisonHistory(
+            dbConfig1.database,
+            dbConfig2.database,
+            comparison,
+            dbConfig1.connectionName || dbConfig1.database,
+            dbConfig2.connectionName || dbConfig2.database
+        );
 
         return {
             success: true,
             data: comparison,
             db1Name: dbConfig1.database,
-            db2Name: dbConfig2.database
+            db2Name: dbConfig2.database,
+            db1DisplayName: dbConfig1.connectionName || dbConfig1.database,
+            db2DisplayName: dbConfig2.connectionName || dbConfig2.database
         };
     } catch (error) {
         console.error('Erro na comparação:', error);
         return { success: false, message: error.message };
     }
+});
+
+// Handlers para abrir janelas via IPC
+ipcMain.handle('open-config-window', async () => {
+    console.log('📱 IPC: Abrindo janela de configuração...');
+    openConfigWindow();
+    return { success: true };
+});
+
+ipcMain.handle('open-compare-window', async () => {
+    console.log('📱 IPC: Abrindo janela de comparação...');
+    openCompareWindow();
+    return { success: true };
+});
+
+ipcMain.handle('open-history-window', async () => {
+    console.log('📱 IPC: Abrindo janela de histórico...');
+    openHistoryWindow();
+    return { success: true };
 });
 
 // Novos handlers para SQLite

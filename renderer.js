@@ -6,21 +6,36 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Função para abrir janela de configuração
-function openConfig() {
-    // Esta função será chamada pelo menu principal
-    console.log('Abrindo configurações...');
+async function openConfig() {
+    console.log('🔧 Solicitando abertura da janela de configuração...');
+    try {
+        await ipcRenderer.invoke('open-config-window');
+        console.log('✅ Janela de configuração solicitada com sucesso');
+    } catch (error) {
+        console.error('❌ Erro ao abrir janela de configuração:', error);
+    }
 }
 
 // Função para abrir janela de comparação
-function openCompare() {
-    // Esta função será chamada pelo menu principal
-    console.log('Abrindo comparação...');
+async function openCompare() {
+    console.log('📊 Solicitando abertura da janela de comparação...');
+    try {
+        await ipcRenderer.invoke('open-compare-window');
+        console.log('✅ Janela de comparação solicitada com sucesso');
+    } catch (error) {
+        console.error('❌ Erro ao abrir janela de comparação:', error);
+    }
 }
 
 // Função para abrir janela de histórico
-function openHistory() {
-    // Esta função será chamada pelo menu principal
-    console.log('Abrindo histórico...');
+async function openHistory() {
+    console.log('📈 Solicitando abertura da janela de histórico...');
+    try {
+        await ipcRenderer.invoke('open-history-window');
+        console.log('✅ Janela de histórico solicitada com sucesso');
+    } catch (error) {
+        console.error('❌ Erro ao abrir janela de histórico:', error);
+    }
 }
 
 // Atualizar status das conexões
@@ -37,7 +52,7 @@ async function updateConnectionStatus() {
         // Atualizar status do banco 1
         if (config1) {
             status1.textContent = '✅';
-            db1Info.textContent = `${config1.user}@${config1.host}:${config1.port}/${config1.database}`;
+            db1Info.textContent = `${config1.connectionName || 'Banco 1'}: ${config1.user}@${config1.host}:${config1.port}/${config1.database}`;
         } else {
             status1.textContent = '❌';
             db1Info.textContent = 'Não configurado';
@@ -46,7 +61,7 @@ async function updateConnectionStatus() {
         // Atualizar status do banco 2
         if (config2) {
             status2.textContent = '✅';
-            db2Info.textContent = `${config2.user}@${config2.host}:${config2.port}/${config2.database}`;
+            db2Info.textContent = `${config2.connectionName || 'Banco 2'}: ${config2.user}@${config2.host}:${config2.port}/${config2.database}`;
         } else {
             status2.textContent = '❌';
             db2Info.textContent = 'Não configurado';

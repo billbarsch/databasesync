@@ -112,8 +112,8 @@
 
                 if (result.success) {
                     comparisonData = result.data;
-                    document.getElementById('db1-name').textContent = result.db1Name;
-                    document.getElementById('db2-name').textContent = result.db2Name;
+                    document.getElementById('db1-name').textContent = result.db1DisplayName || result.db1Name;
+                    document.getElementById('db2-name').textContent = result.db2DisplayName || result.db2Name;
 
                     displayComparison();
                     updateSummary();

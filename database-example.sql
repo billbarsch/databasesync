@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS db_configs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     config_name TEXT NOT NULL,
     -- 'database1' ou 'database2'
+    connection_name TEXT,
+    -- Nome personalizado da conexão
     host TEXT NOT NULL,
     -- Endereço do servidor MySQL
     port INTEGER NOT NULL,
@@ -31,6 +33,10 @@ CREATE TABLE IF NOT EXISTS comparison_history (
     -- Nome do primeiro banco comparado
     db2_name TEXT NOT NULL,
     -- Nome do segundo banco comparado
+    db1_display_name TEXT,
+    -- Nome personalizado da primeira conexão
+    db2_display_name TEXT,
+    -- Nome personalizado da segunda conexão
     total_tables INTEGER NOT NULL,
     -- Total de tabelas encontradas
     different_tables INTEGER NOT NULL,
@@ -69,11 +75,11 @@ CREATE TABLE IF NOT EXISTS app_settings (
 -- ================================================
 -- Configuração de exemplo (inserida automaticamente pela aplicação)
 /*
- INSERT INTO db_configs (config_name, host, port, user, password, database_name) 
- VALUES ('database1', 'localhost', 3306, 'root', '', 'sistema_vendas');
+ INSERT INTO db_configs (config_name, connection_name, host, port, user, password, database_name) 
+ VALUES ('database1', 'Servidor Local', 'localhost', 3306, 'root', '', 'sistema_vendas');
  
- INSERT INTO db_configs (config_name, host, port, user, password, database_name) 
- VALUES ('database2', 'servidor-producao.com', 3306, 'admin', 'senha123', 'vendas_prod');
+ INSERT INTO db_configs (config_name, connection_name, host, port, user, password, database_name) 
+ VALUES ('database2', 'Produção', 'servidor-producao.com', 3306, 'admin', 'senha123', 'vendas_prod');
  */
 -- Histórico de exemplo (inserido automaticamente após comparações)
 /*

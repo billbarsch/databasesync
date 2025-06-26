@@ -40,6 +40,7 @@ class DatabaseManager {
             `CREATE TABLE IF NOT EXISTS db_configs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 config_name TEXT NOT NULL,
+                connection_name TEXT,
                 host TEXT NOT NULL,
                 port INTEGER NOT NULL,
                 user TEXT NOT NULL,
@@ -55,6 +56,8 @@ class DatabaseManager {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 db1_name TEXT NOT NULL,
                 db2_name TEXT NOT NULL,
+                db1_display_name TEXT,
+                db2_display_name TEXT,
                 total_tables INTEGER NOT NULL,
                 different_tables INTEGER NOT NULL,
                 same_tables INTEGER NOT NULL,
@@ -75,7 +78,59 @@ class DatabaseManager {
             await this.run(sql);
         }
 
+        // Executar migrações para atualizar estruturas existentes
+        await this.runMigrations();
+
         console.log('Tabelas SQLite criadas/verificadas');
+    }
+
+    // Executar migrações para atualizar estruturas de tabelas existentes
+    async runMigrations() {
+        try {
+            console.log('🔄 Verificando e executando migrações...');
+
+            // Migração 1: Adicionar coluna connection_name à tabela db_configs
+            const hasConnectionName = await this.checkColumnExists('db_configs', 'connection_name');
+            if (!hasConnectionName) {
+                console.log('➕ Adicionando coluna connection_name à tabela db_configs...');
+                await this.run(`ALTER TABLE db_configs ADD COLUMN connection_name TEXT`);
+                console.log('✅ Coluna connection_name adicionada com sucesso');
+            }
+
+            // Migração 2: Adicionar colunas display_name à tabela comparison_history
+            const hasDb1DisplayName = await this.checkColumnExists('comparison_history', 'db1_display_name');
+            if (!hasDb1DisplayName) {
+                console.log('➕ Adicionando coluna db1_display_name à tabela comparison_history...');
+                await this.run(`ALTER TABLE comparison_history ADD COLUMN db1_display_name TEXT`);
+                console.log('✅ Coluna db1_display_name adicionada com sucesso');
+            }
+
+            const hasDb2DisplayName = await this.checkColumnExists('comparison_history', 'db2_display_name');
+            if (!hasDb2DisplayName) {
+                console.log('➕ Adicionando coluna db2_display_name à tabela comparison_history...');
+                await this.run(`ALTER TABLE comparison_history ADD COLUMN db2_display_name TEXT`);
+                console.log('✅ Coluna db2_display_name adicionada com sucesso');
+            }
+
+            console.log('✅ Migrações concluídas com sucesso');
+        } catch (error) {
+            console.error('❌ Erro ao executar migrações:', error);
+            throw error;
+        }
+    }
+
+    // Verificar se uma coluna existe em uma tabela
+    async checkColumnExists(tableName, columnName) {
+        try {
+            const result = await this.get(`PRAGMA table_info(${tableName})`);
+            if (!result) return false;
+
+            const columns = await this.all(`PRAGMA table_info(${tableName})`);
+            return columns.some(col => col.name === columnName);
+        } catch (error) {
+            console.error(`Erro ao verificar coluna ${columnName} na tabela ${tableName}:`, error);
+            return false;
+        }
     }
 
     // Método auxiliar para executar queries
@@ -123,11 +178,12 @@ class DatabaseManager {
     // Salvar configuração de banco
     async saveDbConfig(configName, config) {
         const sql = `INSERT OR REPLACE INTO db_configs 
-                     (config_name, host, port, user, password, database_name, updated_at) 
-                     VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+                     (config_name, connection_name, host, port, user, password, database_name, updated_at) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
 
         const params = [
             configName,
+            config.connectionName || `Banco ${configName === 'database1' ? '1' : '2'}`,
             config.host,
             config.port,
             config.user,
@@ -145,6 +201,7 @@ class DatabaseManager {
 
         if (row) {
             return {
+                connectionName: row.connection_name,
                 host: row.host,
                 port: row.port,
                 user: row.user,
@@ -164,6 +221,7 @@ class DatabaseManager {
         return rows.map(row => ({
             id: row.id,
             configName: row.config_name,
+            connectionName: row.connection_name,
             host: row.host,
             port: row.port,
             user: row.user,
@@ -174,19 +232,21 @@ class DatabaseManager {
     }
 
     // Salvar histórico de comparação
-    async saveComparisonHistory(db1Name, db2Name, comparisonData) {
+    async saveComparisonHistory(db1Name, db2Name, comparisonData, db1DisplayName = null, db2DisplayName = null) {
         const totalTables = comparisonData.length;
         const differentTables = comparisonData.filter(item => item.different).length;
         const sameTables = comparisonData.filter(item => !item.different && item.exists1 && item.exists2).length;
         const missingTables = comparisonData.filter(item => !item.exists1 || !item.exists2).length;
 
         const sql = `INSERT INTO comparison_history 
-                     (db1_name, db2_name, total_tables, different_tables, same_tables, missing_tables, comparison_data) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?)`;
+                     (db1_name, db2_name, db1_display_name, db2_display_name, total_tables, different_tables, same_tables, missing_tables, comparison_data) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
         const params = [
             db1Name,
             db2Name,
+            db1DisplayName,
+            db2DisplayName,
             totalTables,
             differentTables,
             sameTables,
@@ -209,6 +269,8 @@ class DatabaseManager {
             id: row.id,
             db1Name: row.db1_name,
             db2Name: row.db2_name,
+            db1DisplayName: row.db1_display_name || row.db1_name,
+            db2DisplayName: row.db2_display_name || row.db2_name,
             totalTables: row.total_tables,
             differentTables: row.different_tables,
             sameTables: row.same_tables,
@@ -244,7 +306,7 @@ class DatabaseManager {
 
     // Fechar conexão com o banco
     close() {
-        if (this.db) {
+        if (this.db && this.isInitialized) {
             this.db.close((err) => {
                 if (err) {
                     console.error('Erro ao fechar banco SQLite:', err);
@@ -252,6 +314,8 @@ class DatabaseManager {
                     console.log('Banco SQLite fechado');
                 }
             });
+            this.db = null;
+            this.isInitialized = false;
         }
     }
 }

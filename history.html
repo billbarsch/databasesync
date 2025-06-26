@@ -131,10 +131,10 @@
                 html += `
                     <div class="history-item ${statusClass}" onclick="showDetails(${index})">
                         <div class="history-main">
-                            <div class="history-header">
-                                <h3>${item.db1Name} ⚡ ${item.db2Name}</h3>
-                                <span class="history-date">${formattedDate}</span>
-                            </div>
+                                                     <div class="history-header">
+                             <h3>${item.db1DisplayName} ⚡ ${item.db2DisplayName}</h3>
+                             <span class="history-date">${formattedDate}</span>
+                         </div>
                             
                             <div class="history-stats">
                                 <div class="stat-item">
@@ -178,12 +178,12 @@
             const formattedDate = date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR');
 
             let detailsHtml = `
-                <div class="comparison-info">
-                    <h4>Informações da Comparação</h4>
-                    <p><strong>Banco 1:</strong> ${item.db1Name}</p>
-                    <p><strong>Banco 2:</strong> ${item.db2Name}</p>
-                    <p><strong>Data:</strong> ${formattedDate}</p>
-                </div>
+                                 <div class="comparison-info">
+                     <h4>Informações da Comparação</h4>
+                     <p><strong>Conexão 1:</strong> ${item.db1DisplayName}</p>
+                     <p><strong>Conexão 2:</strong> ${item.db2DisplayName}</p>
+                     <p><strong>Data:</strong> ${formattedDate}</p>
+                 </div>
 
                 <div class="comparison-summary">
                     <h4>Resumo</h4>
@@ -210,12 +210,12 @@
                 <div class="comparison-details">
                     <h4>Detalhes das Tabelas</h4>
                     <div class="table-details">
-                        <div class="table-header">
-                            <div class="table-name-header">Tabela</div>
-                            <div class="table-count-header">${item.db1Name}</div>
-                            <div class="table-count-header">${item.db2Name}</div>
-                            <div class="table-status-header">Status</div>
-                        </div>
+                                                 <div class="table-header">
+                             <div class="table-name-header">Tabela</div>
+                             <div class="table-count-header">${item.db1DisplayName}</div>
+                             <div class="table-count-header">${item.db2DisplayName}</div>
+                             <div class="table-status-header">Status</div>
+                         </div>
             `;
 
             item.comparisonData.forEach(table => {

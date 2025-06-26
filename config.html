@@ -26,6 +26,12 @@
                         <h2>Banco de Dados 1</h2>
                         <form id="form1">
                             <div class="form-group">
+                                <label for="name1">Nome da Conexão:</label>
+                                <input type="text" id="name1" name="connectionName"
+                                    placeholder="Ex: Produção, Local, Desenvolvimento..." required>
+                            </div>
+
+                            <div class="form-group">
                                 <label for="host1">Servidor (Host):</label>
                                 <input type="text" id="host1" name="host" placeholder="localhost" required>
                             </div>
@@ -63,6 +69,12 @@
                     <div class="config-card">
                         <h2>Banco de Dados 2</h2>
                         <form id="form2">
+                            <div class="form-group">
+                                <label for="name2">Nome da Conexão:</label>
+                                <input type="text" id="name2" name="connectionName"
+                                    placeholder="Ex: Backup, Teste, Homologação..." required>
+                            </div>
+
                             <div class="form-group">
                                 <label for="host2">Servidor (Host):</label>
                                 <input type="text" id="host2" name="host" placeholder="localhost" required>
@@ -129,6 +141,7 @@
                 const { config1, config2 } = await ipcRenderer.invoke('get-config');
 
                 if (config1) {
+                    document.getElementById('name1').value = config1.connectionName || '';
                     document.getElementById('host1').value = config1.host || '';
                     document.getElementById('port1').value = config1.port || '3306';
                     document.getElementById('user1').value = config1.user || '';
@@ -137,6 +150,7 @@
                 }
 
                 if (config2) {
+                    document.getElementById('name2').value = config2.connectionName || '';
                     document.getElementById('host2').value = config2.host || '';
                     document.getElementById('port2').value = config2.port || '3306';
                     document.getElementById('user2').value = config2.user || '';
@@ -189,6 +203,7 @@
             const formData2 = new FormData(form2);
 
             const config1 = {
+                connectionName: formData1.get('connectionName'),
                 host: formData1.get('host'),
                 port: parseInt(formData1.get('port')),
                 user: formData1.get('user'),
@@ -197,6 +212,7 @@
             };
 
             const config2 = {
+                connectionName: formData2.get('connectionName'),
                 host: formData2.get('host'),
                 port: parseInt(formData2.get('port')),
                 user: formData2.get('user'),
@@ -205,13 +221,13 @@
             };
 
             // Validar se os campos obrigatórios estão preenchidos
-            if (!config1.host || !config1.user || !config1.database) {
-                alert('Por favor, preencha todos os campos obrigatórios do Banco 1');
+            if (!config1.connectionName || !config1.host || !config1.user || !config1.database) {
+                alert('Por favor, preencha todos os campos obrigatórios do Banco 1 (incluindo o nome da conexão)');
                 return;
             }
 
-            if (!config2.host || !config2.user || !config2.database) {
-                alert('Por favor, preencha todos os campos obrigatórios do Banco 2');
+            if (!config2.connectionName || !config2.host || !config2.user || !config2.database) {
+                alert('Por favor, preencha todos os campos obrigatórios do Banco 2 (incluindo o nome da conexão)');
                 return;
             }
 

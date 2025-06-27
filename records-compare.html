@@ -706,7 +706,8 @@
             const compareBtn = document.getElementById('compare-btn');
             const compareField = document.getElementById('compare-field-select');
 
-            if (db1Data.length > 0 && db2Data.length > 0 && compareField.value) {
+            // Habilitar se pelo menos um banco tem dados E um campo foi selecionado
+            if ((db1Data.length > 0 || db2Data.length > 0) && compareField.value) {
                 compareBtn.disabled = false;
             } else {
                 compareBtn.disabled = true;
@@ -721,8 +722,8 @@
                 return;
             }
 
-            if (db1Data.length === 0 || db2Data.length === 0) {
-                alert('Execute a busca em ambos os bancos antes de comparar');
+            if (db1Data.length === 0 && db2Data.length === 0) {
+                alert('Execute a busca em pelo menos um dos bancos antes de comparar');
                 return;
             }
 

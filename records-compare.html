@@ -166,7 +166,7 @@
                                         onclick="copyFiltersFromDb1ToDb2()"
                                         title="Copiar todos os filtros do DB1 para o DB2">
                                         <i class="icon">📋➡️</i>
-                                        Copiar Filtros DB1
+                                        Copiar Filtros
                                     </button>
                                 </div>
                             </div>
@@ -508,17 +508,12 @@
             const db1Filters = collectActiveFilters('db1');
 
             if (db1Filters.length === 0) {
-                alert('Não há filtros configurados no DB1 para copiar.');
+                console.log('⚠️ Não há filtros configurados no DB1 para copiar');
                 return;
             }
 
             console.log(`📋 Copiando ${db1Filters.length} filtros do DB1 para o DB2`);
             console.log('Filtros coletados:', db1Filters);
-
-            // Confirmar ação
-            if (!confirm(`Deseja copiar ${db1Filters.length} filtro(s) do ${db1Name} para o ${db2Name}?\n\nIsto irá substituir todos os filtros atuais no ${db2Name}.`)) {
-                return;
-            }
 
             // Limpar filtros existentes do DB2
             clearAllFilters('db2');
@@ -621,9 +616,7 @@
                 copyButton.disabled = false;
             }, 2000);
 
-            // Mostrar mensagem de sucesso
-            alert(`✅ ${db1Filters.length} filtro(s) copiado(s) com sucesso do ${db1Name} para o ${db2Name}!`);
-
+            console.log(`✅ ${db1Filters.length} filtro(s) copiado(s) com sucesso do ${db1Name} para o ${db2Name}`);
             console.log('✅ Cópia de filtros concluída com sucesso');
         }
 

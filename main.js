@@ -648,7 +648,7 @@ ipcMain.handle('search-table-records', async (event, { tableName, database, filt
         });
 
         if (bigintColumns.length > 0) {
-            console.log(`🔢 Colunas BIGINT detectadas para busca em ${tableName}:`, bigintColumns.join(', '));
+            console.log(`🔢 ${bigintColumns.length} colunas BIGINT detectadas`);
         }
 
         let query = `SELECT * FROM \`${tableName}\``;
@@ -667,13 +667,10 @@ ipcMain.handle('search-table-records', async (event, { tableName, database, filt
                     } else {
                         condition = `\`${filter.field}\` ${filter.operator} ?`;
 
-                        // ========= TRATAMENTO AUTOMÁTICO DE TIPOS BIGINT =========
-                        // Com bigNumberStrings=true, BIGINT já vem como string do MySQL
                         // Garantir que valores BIGINT sejam tratados como string
                         let paramValue = filter.value;
                         if (bigintColumns.includes(filter.field) && typeof paramValue === 'number') {
                             paramValue = paramValue.toString();
-                            console.log(`🔢 DRIVER MYSQL: Campo BIGINT ${filter.field} convertido para STRING "${paramValue}"`);
                         }
                         params.push(paramValue);
                     }
@@ -695,32 +692,13 @@ ipcMain.handle('search-table-records', async (event, { tableName, database, filt
         // Limitar resultados para performance
         query += ' LIMIT 1000';
 
-        console.log(`🔍 Query executada: ${query}`);
-        console.log(`📊 Parâmetros: `, params);
-
-        // ========= DEBUG ESPECÍFICO PARA PARÂMETROS =========
-        params.forEach((param, index) => {
-            if (typeof param === 'string' && param.length > 15) {
-                console.log(`🔍 Parâmetro ${index}: "${param}" (STRING de ${param.length} caracteres)`);
-            }
-        });
+        console.log(`🔍 Executando busca na tabela ${tableName}`);
 
         const [records] = await conn.execute(query, params);
 
-        // ========= DEBUG DOS REGISTROS RETORNADOS =========
-        if (records.length > 0 && records[0].bancoDados) {
-            console.log(`🔬 ANÁLISE DOS REGISTROS RETORNADOS:`);
-            console.log(`📊 Total de registros retornados: ${records.length}`);
-            console.log(`🔍 Primeiro registro - bancoDados: ${records[0].bancoDados} (${typeof records[0].bancoDados})`);
-            console.log(`🔍 Valor como STRING: "${records[0].bancoDados.toString()}"`);
-
-            // Verificar se algum parâmetro da busca corresponde ao bancoDados retornado
-            params.forEach((param, index) => {
-                if (typeof param === 'string' && param.length > 15) {
-                    const matches = param === records[0].bancoDados.toString();
-                    console.log(`🔍 Parâmetro ${index} "${param}" ${matches ? '✅ MATCH' : '❌ DIVERGE'} bancoDados "${records[0].bancoDados}"`);
-                }
-            });
+        // Log básico de resultados
+        if (records.length > 0) {
+            console.log(`📊 ${records.length} registros encontrados`);
         }
 
         await conn.end();
@@ -739,30 +717,9 @@ ipcMain.handle('search-table-records', async (event, { tableName, database, filt
 // Comparar registros
 ipcMain.handle('compare-records', async (event, { db1Records, db2Records, compareField }) => {
     try {
-        console.log(`\n🔄 === INICIANDO COMPARAÇÃO DE REGISTROS ===`);
-        console.log(`📊 DB1 Records: ${db1Records.length}`);
-        console.log(`📊 DB2 Records: ${db2Records.length}`);
-        console.log(`🔍 Campo de comparação: ${compareField}`);
+        console.log(`🔄 Comparando ${db1Records.length} vs ${db2Records.length} registros por campo: ${compareField}`);
 
-        // Debug dos primeiros registros para ver o bancoDados
-        if (db1Records.length > 0) {
-            console.log(`🏦 Primeiro registro DB1 - bancoDados: ${db1Records[0].bancoDados} (${typeof db1Records[0].bancoDados})`);
-            console.log(`🏦 Primeiro registro DB1 - ${compareField}: ${db1Records[0][compareField]}`);
 
-            // ========= DEBUG ESPECÍFICO PARA PRECISÃO NUMÉRICA =========
-            if (typeof db1Records[0].bancoDados === 'number') {
-                console.log(`🔬 DB1 bancoDados como STRING: "${db1Records[0].bancoDados.toString()}"`);
-            }
-        }
-        if (db2Records.length > 0) {
-            console.log(`🏦 Primeiro registro DB2 - bancoDados: ${db2Records[0].bancoDados} (${typeof db2Records[0].bancoDados})`);
-            console.log(`🏦 Primeiro registro DB2 - ${compareField}: ${db2Records[0][compareField]}`);
-
-            // ========= DEBUG ESPECÍFICO PARA PRECISÃO NUMÉRICA =========
-            if (typeof db2Records[0].bancoDados === 'number') {
-                console.log(`🔬 DB2 bancoDados como STRING: "${db2Records[0].bancoDados.toString()}"`);
-            }
-        }
 
         const comparison = [];
         const db1Map = new Map();
@@ -827,23 +784,7 @@ ipcMain.handle('compare-records', async (event, { db1Records, db2Records, compar
                 comparison.filter(c => c.status === 'only-db2').length
         };
 
-        console.log(`\n📊 === RESULTADO DA COMPARAÇÃO ===`);
-        console.log(`Total de comparações: ${comparison.length}`);
-
-        // Debug dos primeiros resultados de comparação para ver bancoDados
-        if (comparison.length > 0) {
-            const firstResult = comparison[0];
-            console.log(`\n🔬 PRIMEIRA COMPARAÇÃO DEBUG:`);
-            console.log(`📊 Status: ${firstResult.status}`);
-            console.log(`🔍 Compare Value: ${firstResult.compareValue}`);
-            if (firstResult.db1Record) {
-                console.log(`🏦 DB1 bancoDados: ${firstResult.db1Record.bancoDados} (${typeof firstResult.db1Record.bancoDados})`);
-            }
-            if (firstResult.db2Record) {
-                console.log(`🏦 DB2 bancoDados: ${firstResult.db2Record?.bancoDados || 'NULL'} (${typeof firstResult.db2Record?.bancoDados})`);
-            }
-        }
-        console.log(`===============================\n`);
+        console.log(`📊 Comparação concluída: ${comparison.length} registros processados`);
 
         return {
             success: true,
@@ -861,10 +802,7 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
     let conn = null;
 
     try {
-        console.log(`🚀 === INICIANDO ENVIO DE REGISTROS ===`);
-        console.log(`📋 Tabela: ${tableName}`);
-        console.log(`🎯 Banco destino: ${targetDatabase}`);
-        console.log(`📊 Total de registros recebidos: ${records.length}`);
+        console.log(`🚀 Enviando ${records.length} registros para ${tableName} (destino: ${targetDatabase})`);
 
         const dbConfig1 = await dbManager.getDbConfig('database1', currentProjectId);
         const dbConfig2 = await dbManager.getDbConfig('database2', currentProjectId);
@@ -877,13 +815,7 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
         const dbConfig = targetDatabase === 'db1' ? dbConfig1 : dbConfig2;
         const targetDbName = dbConfig.connectionName || `${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`;
 
-        console.log(`🔧 Conectando ao banco destino: ${targetDbName}`);
-        console.log(`🔧 Configuração:`, {
-            host: dbConfig.host,
-            port: dbConfig.port,
-            user: dbConfig.user,
-            database: dbConfig.database
-        });
+        console.log(`🔧 Conectando: ${targetDbName}`);
 
         // Remover connectionName antes de passar para MySQL
         const mysqlConfig = {
@@ -901,12 +833,9 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
         console.log(`✅ Conexão estabelecida com sucesso`);
 
         // Verificar se a tabela existe e obter estrutura
-        console.log(`\n🔍 === VERIFICANDO ESTRUTURA DA TABELA ===`);
+        console.log(`🔍 Verificando estrutura da tabela ${tableName}`);
         const tableCheckSql = `SHOW TABLES LIKE '${tableName}'`;
-        console.log(`📝 SQL: ${tableCheckSql}`);
-
         const [tableExists] = await conn.execute(tableCheckSql);
-        console.log(`📋 Tabela '${tableName}':`, tableExists.length > 0 ? 'EXISTE' : 'NÃO EXISTE');
 
         if (tableExists.length === 0) {
             await conn.end();
@@ -915,21 +844,14 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
 
         // Obter informações sobre chaves primárias
         const keyInfoSql = `SHOW KEYS FROM \`${tableName}\` WHERE Key_name = 'PRIMARY'`;
-        console.log(`📝 SQL: ${keyInfoSql}`);
-
         const [primaryKeys] = await conn.execute(keyInfoSql);
         const hasPrimaryKey = primaryKeys.length > 0;
         const primaryKeyColumns = primaryKeys.map(key => key.Column_name);
 
-        console.log(`🔑 Chave primária:`, hasPrimaryKey ? `SIM (${primaryKeyColumns.join(', ')})` : 'NÃO');
-
         // Obter estrutura completa da tabela
         const tableStructureSql = `DESCRIBE \`${tableName}\``;
-        console.log(`📝 SQL: ${tableStructureSql}`);
-
         const [tableStructure] = await conn.execute(tableStructureSql);
         const tableColumns = tableStructure.map(col => col.Field);
-        console.log(`📊 Colunas da tabela (${tableColumns.length}):`, tableColumns.slice(0, 5).join(', ') + (tableColumns.length > 5 ? '...' : ''));
 
         // ========= IDENTIFICAR TIPOS DE DADOS AUTOMATICAMENTE =========
         const bigintColumns = [];
@@ -949,8 +871,7 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
             }
         });
 
-        console.log(`🔢 Colunas BIGINT detectadas (${bigintColumns.length}):`, bigintColumns.join(', ') || 'nenhuma');
-        console.log(`📅 Colunas DATE/DATETIME detectadas (${dateTimeColumns.length}):`, dateTimeColumns.join(', ') || 'nenhuma');
+        console.log(`🔢 ${bigintColumns.length} colunas BIGINT, ${dateTimeColumns.length} colunas DATE/DATETIME detectadas`);
 
         let insertedCount = 0;
         let updatedCount = 0;
@@ -970,12 +891,6 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
                 if (recordData.sourceRecord) {
                     record = recordData.sourceRecord;
                     recordSource = 'sourceRecord pré-definido';
-                    console.log(`📤 Usando ${recordSource}`);
-
-                    // Log específico para campo bancoDados para debug
-                    if (record.bancoDados) {
-                        console.log(`🔍 Campo bancoDados detectado: ${record.bancoDados} (tipo: ${typeof record.bancoDados})`);
-                    }
                 } else {
                     console.log(`🔍 Status do registro: ${recordData.status}`);
 
@@ -1011,16 +926,9 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
                     continue;
                 }
 
-                console.log(`💾 Preparando para inserir/atualizar ${recordKeys.length} campos`);
-                console.log(`📋 Campos:`, recordKeys.slice(0, 3).join(', ') + (recordKeys.length > 3 ? '...' : ''));
-
                 // Filtrar apenas colunas que existem na tabela
                 const validColumns = recordKeys.filter(col => tableColumns.includes(col));
                 const invalidColumns = recordKeys.filter(col => !tableColumns.includes(col));
-
-                if (invalidColumns.length > 0) {
-                    console.log(`⚠️ Colunas ignoradas (não existem na tabela):`, invalidColumns.join(', '));
-                }
 
                 if (validColumns.length === 0) {
                     console.log(`❌ Nenhuma coluna válida encontrada - pulando registro`);
@@ -1032,43 +940,29 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
                 const values = validColumns.map(col => {
                     let value = record[col];
 
-                    // ========= TRATAMENTO AUTOMÁTICO DE TIPOS BIGINT =========
-                    // Com bigNumberStrings=true, o driver MySQL2 já retorna BIGINT como string
-                    // Garantir que valores BIGINT sejam enviados como string
+                    // Tratar campos BIGINT como string para preservar precisão
                     if (bigintColumns.includes(col) && typeof value === 'number') {
-                        const originalValue = value;
                         value = value.toString();
-                        console.log(`🔢 DRIVER MYSQL: Campo BIGINT ${col} ${originalValue} → STRING "${value}"`);
                     }
 
-                    // ========= PRESERVAÇÃO DE FORMATO DE DATAS =========
-                    // Para campos DATE/DATETIME, preservar formato original (NÃO converter objetos Date)
-                    if (dateTimeColumns.includes(col)) {
-                        if (value instanceof Date) {
-                            // Se é um objeto Date, converter para formato MySQL sem timezone
-                            const year = value.getFullYear();
-                            const month = String(value.getMonth() + 1).padStart(2, '0');
-                            const day = String(value.getDate()).padStart(2, '0');
-                            const hours = String(value.getHours()).padStart(2, '0');
-                            const minutes = String(value.getMinutes()).padStart(2, '0');
-                            const seconds = String(value.getSeconds()).padStart(2, '0');
+                    // Converter objetos Date para formato MySQL
+                    if (dateTimeColumns.includes(col) && value instanceof Date) {
+                        const year = value.getFullYear();
+                        const month = String(value.getMonth() + 1).padStart(2, '0');
+                        const day = String(value.getDate()).padStart(2, '0');
+                        const hours = String(value.getHours()).padStart(2, '0');
+                        const minutes = String(value.getMinutes()).padStart(2, '0');
+                        const seconds = String(value.getSeconds()).padStart(2, '0');
+                        value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+                    }
 
-                            const originalValue = value;
-                            value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-                            console.log(`📅 PRESERVANDO DATA: ${col} [${originalValue}] → "${value}"`);
-                        } else if (typeof value === 'string' && value.includes('T') && value.includes('Z')) {
-                            // Se é string ISO, converter para formato MySQL
-                            try {
-                                const date = new Date(value);
-                                const originalValue = value;
-                                value = date.toISOString().slice(0, 19).replace('T', ' ');
-                                console.log(`📅 CONVERTENDO ISO: ${col} "${originalValue}" → "${value}"`);
-                            } catch (error) {
-                                console.log(`⚠️ Erro ao converter data ISO ${col}: ${error.message}`);
-                            }
-                        } else {
-                            // Se já está em formato string adequado, manter como está
-                            console.log(`📅 MANTENDO FORMATO: ${col} = "${value}"`);
+                    // Converter datas ISO para formato MySQL
+                    if (dateTimeColumns.includes(col) && typeof value === 'string' && value.includes('T') && value.includes('Z')) {
+                        try {
+                            const date = new Date(value);
+                            value = date.toISOString().slice(0, 19).replace('T', ' ');
+                        } catch (error) {
+                            console.log(`⚠️ Erro ao converter data ISO ${col}: ${error.message}`);
                         }
                     }
 
@@ -1076,27 +970,6 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
                 });
                 const placeholders = validColumns.map(() => '?').join(', ');
                 const columnNames = validColumns.map(col => `\`${col}\``).join(', ');
-
-                // Log específico para bancoDados antes da inserção
-                const bancoDadosIndex = validColumns.indexOf('bancoDados');
-                if (bancoDadosIndex !== -1) {
-                    console.log(`🎯 VALOR ESPECÍFICO bancoDados a ser inserido: ${values[bancoDadosIndex]} (tipo: ${typeof values[bancoDadosIndex]})`);
-                }
-
-                // Log específico para campos de data antes da inserção
-                const dateFields = ['dataEmissao', 'dataVencimento', 'dataRecebimento', 'created_at', 'updated_at'];
-                dateFields.forEach(field => {
-                    const fieldIndex = validColumns.indexOf(field);
-                    if (fieldIndex !== -1) {
-                        const value = values[fieldIndex];
-                        console.log(`📅 Campo ${field} a ser inserido: ${value} (tipo: ${typeof value})`);
-
-                        // Se for string no formato ISO, mostrar aviso
-                        if (typeof value === 'string' && value.includes('T') && value.includes('Z')) {
-                            console.log(`⚠️  ATENÇÃO: Campo ${field} está em formato ISO que pode causar erro no MySQL!`);
-                        }
-                    }
-                });
 
                 // Construir query apropriada
                 let insertQuery;
@@ -1109,23 +982,8 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
                     insertQuery = `INSERT IGNORE INTO \`${tableName}\` (${columnNames}) VALUES (${placeholders})`;
                 }
 
-                console.log(`📝 SQL preparado:`, insertQuery.length > 200 ? insertQuery.substring(0, 200) + '...' : insertQuery);
-                console.log(`📊 Valores (primeiros 3):`, values.slice(0, 3).map(v => {
-                    if (v === null) return 'NULL';
-                    if (typeof v === 'string' && v.length > 30) return v.substring(0, 30) + '...';
-                    return v;
-                }));
-
                 // Executar inserção
-                console.log(`⚡ Executando SQL...`);
                 const [result] = await conn.execute(insertQuery, values);
-
-                console.log(`📊 Resultado da execução:`, {
-                    affectedRows: result.affectedRows,
-                    insertId: result.insertId,
-                    changedRows: result.changedRows,
-                    warningCount: result.warningCount
-                });
 
                 // Determinar se foi inserção ou atualização
                 let wasInserted = false;
@@ -1155,105 +1013,14 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
                     }
                 }
 
-                // Verificar se o registro foi realmente inserido/atualizado
+                // Verificação simples se o registro foi inserido
                 if (wasInserted || wasUpdated) {
-                    let verificationQuery = '';
-                    let verificationParams = [];
-
-                    if (hasPrimaryKey && primaryKeyColumns.length > 0) {
-                        // Usar chave primária para verificação
-                        const pkConditions = primaryKeyColumns.map(col => `\`${col}\` = ?`).join(' AND ');
-                        const pkValues = primaryKeyColumns.map(col => record[col]);
-
-                        verificationQuery = `SELECT COUNT(*) as count FROM \`${tableName}\` WHERE ${pkConditions}`;
-                        verificationParams = pkValues;
-                    } else {
-                        // Usar todos os campos para verificação (menos eficiente, mas funciona)
-                        const allConditions = validColumns.map(col => {
-                            if (record[col] === null) {
-                                return `\`${col}\` IS NULL`;
-                            } else {
-                                return `\`${col}\` = ?`;
-                            }
-                        }).join(' AND ');
-
-                        verificationQuery = `SELECT COUNT(*) as count FROM \`${tableName}\` WHERE ${allConditions}`;
-                        verificationParams = validColumns.filter(col => record[col] !== null).map(col => record[col]);
-                    }
-
-                    console.log(`🔍 Verificando inserção...`);
-                    console.log(`📝 SQL de verificação:`, verificationQuery.length > 150 ? verificationQuery.substring(0, 150) + '...' : verificationQuery);
-
-                    const [verificationResult] = await conn.execute(verificationQuery, verificationParams);
-                    const recordExists = verificationResult[0].count > 0;
-
-                    console.log(`🎯 VERIFICAÇÃO: Registro ${recordExists ? 'ENCONTRADO' : 'NÃO ENCONTRADO'} na tabela de destino`);
-
                     if (!recordExists) {
-                        console.log(`❌ ERRO: Registro deveria existir mas não foi encontrado!`);
+                        console.log(`❌ ERRO: Registro não foi encontrado após inserção`);
                         errorCount++;
                         if (wasInserted) insertedCount--;
                         if (wasUpdated) updatedCount--;
-                    } else {
-                        console.log(`✅ CONFIRMADO: Registro existe na tabela de destino`);
                     }
-
-                    // ========= VERIFICAÇÃO DETALHADA COMPLETA =========
-                    console.log(`\n🔬 === VERIFICAÇÃO DETALHADA DO REGISTRO INSERIDO ===`);
-
-                    // Buscar o registro completo que foi inserido para comparação
-                    const detailQuery = `SELECT * FROM \`${tableName}\` WHERE \`id\` = ?`;
-                    const [detailResult] = await conn.execute(detailQuery, [record.id]);
-
-                    if (detailResult.length > 0) {
-                        const insertedRecord = detailResult[0];
-                        console.log(`✅ Registro encontrado na tabela de destino com ID: ${record.id}`);
-
-                        // Comparar campos específicos importantes
-                        const importantFields = ['id', 'bancoDados', 'dataEmissao', 'empresa', 'emitente', 'numero', 'serie'];
-                        console.log(`\n📊 COMPARAÇÃO CAMPO POR CAMPO:`);
-
-                        importantFields.forEach(field => {
-                            if (record[field] !== undefined) {
-                                const originalValue = record[field];
-                                const insertedValue = insertedRecord[field];
-                                const matches = String(originalValue) === String(insertedValue);
-
-                                console.log(`${matches ? '✅' : '❌'} ${field}:`);
-                                console.log(`   Original: ${originalValue} (${typeof originalValue})`);
-                                console.log(`   Inserido: ${insertedValue} (${typeof insertedValue})`);
-                                console.log(`   Match: ${matches}`);
-                            }
-                        });
-
-                        // Mostrar TODOS os campos para debug completo
-                        console.log(`\n📋 REGISTRO COMPLETO INSERIDO:`);
-                        Object.keys(insertedRecord).forEach(key => {
-                            console.log(`   ${key}: ${insertedRecord[key]} (${typeof insertedRecord[key]})`);
-                        });
-
-                    } else {
-                        console.log(`❌ FALHA CRÍTICA: Registro com ID ${record.id} NÃO FOI ENCONTRADO após inserção!`);
-                    }
-
-                    // ========= VERIFICAÇÃO ESPECÍFICA PARA CAMPOS BIGINT =========
-                    // Verificar se algum campo BIGINT foi inserido para debug
-                    for (const bigintCol of bigintColumns) {
-                        if (record[bigintCol] !== undefined) {
-                            const countQuery = `SELECT COUNT(*) as total FROM \`${tableName}\` WHERE \`${bigintCol}\` = ?`;
-                            const valueForQuery = typeof record[bigintCol] === 'number' ? record[bigintCol].toString() : record[bigintCol];
-                            const [countResult] = await conn.execute(countQuery, [valueForQuery]);
-                            console.log(`🔢 Total de registros com ${bigintCol} '${valueForQuery}': ${countResult[0].total}`);
-                        }
-                    }
-
-                    // Verificar se existe algum registro com o bancoDados da busca original
-                    const originalBancoDados = '533451641457980538'; // Valor usado na busca
-                    const originalQuery = `SELECT COUNT(*) as total FROM \`${tableName}\` WHERE \`bancoDados\` = ?`;
-                    const [originalCountResult] = await conn.execute(originalQuery, [originalBancoDados]);
-                    console.log(`📊 Total de registros com bancoDados original '${originalBancoDados}': ${originalCountResult[0].total}`);
-
-                    console.log(`🏁 === FIM VERIFICAÇÃO DETALHADA ===\n`);
                 }
 
                 processedRecords.push({
@@ -1264,16 +1031,7 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
                 });
 
             } catch (recordError) {
-                console.error(`❌ ERRO ao processar registro ${i + 1}:`);
-                console.error(`📋 Mensagem:`, recordError.message);
-                console.error(`📋 Código:`, recordError.code);
-                console.error(`📋 SQL State:`, recordError.sqlState);
-                console.error(`📋 Errno:`, recordError.errno);
-
-                if (recordError.sql) {
-                    console.error(`📋 SQL que causou erro:`, recordError.sql);
-                }
-
+                console.error(`❌ Erro ao processar registro ${i + 1}: ${recordError.message}`);
                 errorCount++;
                 processedRecords.push({
                     index: i + 1,
@@ -1284,78 +1042,7 @@ ipcMain.handle('send-records-to-database', async (event, { tableName, targetData
             }
         }
 
-        // ========= VERIFICAÇÃO FINAL DO BANCO =========
-        console.log(`\n🏆 === VERIFICAÇÃO FINAL DO ESTADO DO BANCO ===`);
 
-        // Buscar TODOS os registros da tabela para mostrar o estado final
-        const finalCheckQuery = `SELECT id, bancoDados, empresa, emitente, dataEmissao FROM \`${tableName}\` ORDER BY id DESC LIMIT 10`;
-        console.log(`📝 Executando verificação final: ${finalCheckQuery}`);
-
-        const [finalRecords] = await conn.execute(finalCheckQuery);
-        console.log(`📊 Total de registros encontrados na verificação: ${finalRecords.length}`);
-
-        if (finalRecords.length > 0) {
-            console.log(`📋 ÚLTIMOS 10 REGISTROS NA TABELA:`);
-            finalRecords.forEach((record, idx) => {
-                console.log(`   ${idx + 1}. ID: ${record.id}, bancoDados: ${record.bancoDados}, empresa: ${record.empresa}`);
-            });
-        }
-
-        // ========= VERIFICAÇÃO FINAL PARA CAMPOS BIGINT =========
-        // Buscar especificamente com os valores BIGINT que foram inseridos
-        if (records.length > 0 && records[0].sourceRecord && bigintColumns.length > 0) {
-            const firstRecord = records[0].sourceRecord;
-
-            for (const bigintCol of bigintColumns) {
-                if (firstRecord[bigintCol] !== undefined) {
-                    const insertedQuery = `SELECT COUNT(*) as total FROM \`${tableName}\` WHERE \`${bigintCol}\` = ?`;
-                    const valueForFinalQuery = typeof firstRecord[bigintCol] === 'number' ?
-                        firstRecord[bigintCol].toString() : firstRecord[bigintCol];
-                    const [insertedResult] = await conn.execute(insertedQuery, [valueForFinalQuery]);
-                    console.log(`🎯 Registros com ${bigintCol} '${valueForFinalQuery}' (valor inserido): ${insertedResult[0].total}`);
-                }
-            }
-        }
-
-        // Buscar com o bancoDados usado na busca original (533451641457980538)
-        const originalBancoDados = '533451641457980538';
-        const originalQuery = `SELECT COUNT(*) as total FROM \`${tableName}\` WHERE bancoDados = ?`;
-        const [originalResult] = await conn.execute(originalQuery, [originalBancoDados]);
-        console.log(`🔍 Registros com bancoDados '${originalBancoDados}' (valor da busca): ${originalResult[0].total}`);
-
-        // ========= TESTE DE VALIDAÇÃO BIGINT =========
-        console.log(`\n🧪 === TESTE DE VALIDAÇÃO BIGINT ===`);
-
-        if (bigintColumns.includes('bancoDados') && records.length > 0) {
-            const testBancoDados = originalBancoDados;
-
-            // Teste: Busca com driver MySQL2 configurado (bigNumberStrings=true)
-            const normalQuery = `SELECT COUNT(*) as total FROM \`${tableName}\` WHERE bancoDados = ?`;
-            const [normalResult] = await conn.execute(normalQuery, [testBancoDados]);
-            console.log(`🔢 TESTE com Driver MySQL2: bancoDados = '${testBancoDados}' → ${normalResult[0].total} registros`);
-
-            // Verificar os registros recém-inseridos
-            if (records.length > 0) {
-                const insertedRecord = records[0].sourceRecord;
-                if (insertedRecord && insertedRecord.bancoDados) {
-                    const insertedValue = insertedRecord.bancoDados.toString();
-
-                    const insertedQuery = `SELECT COUNT(*) as total FROM \`${tableName}\` WHERE bancoDados = ?`;
-                    const [insertedResult] = await conn.execute(insertedQuery, [insertedValue]);
-                    console.log(`🎯 TESTE Inserido: bancoDados = '${insertedValue}' → ${insertedResult[0].total} registros`);
-
-                    // Comparar strings diretamente (mais preciso)
-                    const valuesMatch = testBancoDados === insertedValue;
-                    console.log(`📊 ANÁLISE DE PRECISÃO:`);
-                    console.log(`   Busca original: "${testBancoDados}"`);
-                    console.log(`   Valor inserido: "${insertedValue}"`);
-                    console.log(`   ${valuesMatch ? '✅ STRINGS IDÊNTICAS - SEM PERDA DE PRECISÃO' : '❌ STRINGS DIFERENTES - PERDA DE PRECISÃO DETECTADA'}`);
-                }
-            }
-        }
-
-        console.log(`🏁 === FIM TESTE VALIDAÇÃO ===`);
-        console.log(`🏁 === FIM VERIFICAÇÃO FINAL ===\n`);
 
         console.log(`\n🎯 === RESUMO FINAL DO ENVIO ===`);
         console.log(`📊 Total de registros processados: ${records.length}`);

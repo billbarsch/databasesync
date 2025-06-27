@@ -162,6 +162,12 @@
                                         <i class="icon">💾❌</i>
                                         Limpar Salvos
                                     </button>
+                                    <button class="btn btn-secondary copy-filters-btn"
+                                        onclick="copyFiltersFromDb1ToDb2()"
+                                        title="Copiar todos os filtros do DB1 para o DB2">
+                                        <i class="icon">📋➡️</i>
+                                        Copiar Filtros DB1
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -493,6 +499,132 @@
         function updateFilterSummary(database, filters) {
             // Esta função poderia mostrar um resumo dos filtros aplicados
             // Por enquanto não faz nada, mas pode ser expandida no futuro
+        }
+
+        function copyFiltersFromDb1ToDb2() {
+            console.log('📋 === COPIANDO FILTROS DB1 → DB2 ===');
+
+            // Coletar filtros ativos do DB1
+            const db1Filters = collectActiveFilters('db1');
+
+            if (db1Filters.length === 0) {
+                alert('Não há filtros configurados no DB1 para copiar.');
+                return;
+            }
+
+            console.log(`📋 Copiando ${db1Filters.length} filtros do DB1 para o DB2`);
+            console.log('Filtros coletados:', db1Filters);
+
+            // Confirmar ação
+            if (!confirm(`Deseja copiar ${db1Filters.length} filtro(s) do ${db1Name} para o ${db2Name}?\n\nIsto irá substituir todos os filtros atuais no ${db2Name}.`)) {
+                return;
+            }
+
+            // Limpar filtros existentes do DB2
+            clearAllFilters('db2');
+
+            // Criar novos filtros no DB2 baseados no DB1
+            const db2Container = document.getElementById('db2-filters-container');
+
+            // Remover o filtro padrão vazio
+            db2Container.innerHTML = '';
+
+            db1Filters.forEach((filter, index) => {
+                console.log(`📝 Criando filtro ${index + 1}:`, filter);
+
+                const newFilterRow = document.createElement('div');
+                newFilterRow.className = 'filter-row';
+                newFilterRow.setAttribute('data-filter-index', index);
+
+                newFilterRow.innerHTML = `
+                    <div class="logic-indicator">${index > 0 ? 'E/OU' : ''}</div>
+                    <div class="filter-fields">
+                        <div class="form-group">
+                            <label>Campo:</label>
+                            <select class="field-select" data-database="db2" data-index="${index}">
+                                <option value="">Selecione um campo...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Operador:</label>
+                            <select class="operator-select" data-index="${index}">
+                                <option value="=">=</option>
+                                <option value="!=">!=</option>
+                                <option value=">">&gt;</option>
+                                <option value="<">&lt;</option>
+                                <option value=">=">&gt;=</option>
+                                <option value="<=">&lt;=</option>
+                                <option value="LIKE">LIKE</option>
+                                <option value="NOT LIKE">NOT LIKE</option>
+                                <option value="IS NULL">IS NULL</option>
+                                <option value="IS NOT NULL">IS NOT NULL</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Valor:</label>
+                            <input type="text" class="value-input" data-index="${index}" placeholder="Digite o valor...">
+                        </div>
+                        <div class="form-group">
+                            <label>Lógica:</label>
+                            <select class="logic-select" data-index="${index}">
+                                <option value="AND">E (AND)</option>
+                                <option value="OR">OU (OR)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="filter-actions">
+                        <button class="btn-remove-filter" onclick="removeFilter('db2', ${index})" title="Remover filtro">
+                            <i class="icon">❌</i>
+                        </button>
+                    </div>
+                `;
+
+                db2Container.appendChild(newFilterRow);
+            });
+
+            // Popular os campos recém-criados
+            populateAllFieldSelects();
+
+            // Definir os valores copiados
+            const db2FilterRows = db2Container.querySelectorAll('.filter-row');
+            db2FilterRows.forEach((row, index) => {
+                const filter = db1Filters[index];
+                if (filter) {
+                    const fieldSelect = row.querySelector('.field-select');
+                    const operatorSelect = row.querySelector('.operator-select');
+                    const valueInput = row.querySelector('.value-input');
+                    const logicSelect = row.querySelector('.logic-select');
+
+                    if (fieldSelect) fieldSelect.value = filter.field;
+                    if (operatorSelect) operatorSelect.value = filter.operator;
+                    if (valueInput) valueInput.value = filter.value;
+                    if (logicSelect && filter.logic) logicSelect.value = filter.logic;
+
+                    console.log(`✅ Filtro ${index + 1} configurado: ${filter.field} ${filter.operator} ${filter.value}`);
+                }
+            });
+
+            // Atualizar botões de remoção
+            updateRemoveButtons('db2');
+
+            // Salvar os filtros copiados
+            saveCurrentFilters('db2');
+
+            // Feedback visual
+            const copyButton = document.querySelector('.copy-filters-btn');
+            const originalText = copyButton.innerHTML;
+            copyButton.innerHTML = '<i class="icon">✅</i> Copiado!';
+            copyButton.disabled = true;
+
+            setTimeout(() => {
+                copyButton.innerHTML = originalText;
+                copyButton.disabled = false;
+            }, 2000);
+
+            // Mostrar mensagem de sucesso
+            alert(`✅ ${db1Filters.length} filtro(s) copiado(s) com sucesso do ${db1Name} para o ${db2Name}!`);
+
+            console.log('✅ Cópia de filtros concluída com sucesso');
         }
 
         function displayRecords(database, records) {

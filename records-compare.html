@@ -295,6 +295,48 @@
         </main>
     </div>
 
+    <!-- Modal para visualizar diferenças -->
+    <div id="differences-modal" class="modal" style="display: none;">
+        <div class="modal-content differences-modal-content">
+            <div class="modal-header">
+                <h3>🔍 Diferenças Detalhadas</h3>
+                <button class="close-btn" onclick="closeDifferencesModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="comparison-header-info">
+                    <div class="comparison-value-info">
+                        <strong>Valor de Comparação:</strong> <span id="modal-compare-value"></span>
+                    </div>
+                </div>
+
+                <div class="fields-comparison">
+                    <div class="comparison-columns">
+                        <div class="comparison-column">
+                            <h4 id="modal-db1-title" class="db-column-title">Banco 1</h4>
+                            <div id="modal-db1-fields" class="fields-container">
+                                <!-- Campos do DB1 -->
+                            </div>
+                        </div>
+
+                        <div class="comparison-column">
+                            <h4 id="modal-db2-title" class="db-column-title">Banco 2</h4>
+                            <div id="modal-db2-fields" class="fields-container">
+                                <!-- Campos do DB2 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="differences-summary">
+                    <h4>📊 Resumo das Diferenças</h4>
+                    <div id="differences-count" class="summary-info">
+                        <!-- Contagem de diferenças -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const { ipcRenderer } = require('electron');
 
@@ -1014,6 +1056,7 @@
             html += '<th>Valor Comparação</th>';
             html += `<th>Registro ${db1Name}</th>`;
             html += `<th>Registro ${db2Name}</th>`;
+            html += '<th>Ações</th>';
             html += '</tr></thead><tbody>';
 
             filteredResults.forEach((result, index) => {
@@ -1037,6 +1080,14 @@
                 html += `<td><strong>${result.compareValue}</strong></td>`;
                 html += `<td class="record-data" title="${db1Value.replace(/"/g, '&quot;')}">${db1Value.length > 100 ? db1Value.substring(0, 100) + '...' : db1Value}</td>`;
                 html += `<td class="record-data" title="${db2Value.replace(/"/g, '&quot;')}">${db2Value.length > 100 ? db2Value.substring(0, 100) + '...' : db2Value}</td>`;
+
+                // Adicionar botão "Ver Diferenças" apenas para registros diferentes
+                if (result.status === 'different') {
+                    html += `<td class="action-cell"><button class="btn-view-diff" onclick="viewDifferences(${index})" title="Ver diferenças campo por campo"><i class="icon">🔍</i> Ver Diferenças</button></td>`;
+                } else {
+                    html += '<td class="action-cell">-</td>';
+                }
+
                 html += '</tr>';
             });
 
@@ -1045,6 +1096,149 @@
 
             console.log(`✅ Tabela renderizada com ${filteredResults.length} registros`);
         }
+
+        function viewDifferences(index) {
+            console.log(`🔍 === VISUALIZANDO DIFERENÇAS DO REGISTRO ${index + 1} ===`);
+
+            const filteredResults = getFilteredResults();
+            const recordData = filteredResults[index];
+
+            if (!recordData || recordData.status !== 'different') {
+                console.error('❌ Registro não encontrado ou não é diferente');
+                return;
+            }
+
+            console.log('Dados do registro:', recordData);
+
+            // Abrir modal
+            const modal = document.getElementById('differences-modal');
+            modal.style.display = 'block';
+
+            // Configurar títulos
+            document.getElementById('modal-db1-title').textContent = db1Name;
+            document.getElementById('modal-db2-title').textContent = db2Name;
+            document.getElementById('modal-compare-value').textContent = recordData.compareValue;
+
+            // Comparar e exibir campos
+            compareAndDisplayFields(recordData.db1Record, recordData.db2Record);
+        }
+
+        function compareAndDisplayFields(db1Record, db2Record) {
+            console.log('📊 === COMPARANDO CAMPOS ===');
+
+            const db1Container = document.getElementById('modal-db1-fields');
+            const db2Container = document.getElementById('modal-db2-fields');
+            const summaryContainer = document.getElementById('differences-count');
+
+            // Obter todos os campos únicos
+            const allFields = new Set([
+                ...Object.keys(db1Record || {}),
+                ...Object.keys(db2Record || {})
+            ]);
+
+            let differences = 0;
+            let equals = 0;
+
+            let db1Html = '';
+            let db2Html = '';
+
+            // Comparar cada campo
+            allFields.forEach(field => {
+                const db1Value = db1Record?.[field];
+                const db2Value = db2Record?.[field];
+
+                // Verificar se são diferentes
+                const isDifferent = JSON.stringify(db1Value) !== JSON.stringify(db2Value);
+
+                if (isDifferent) {
+                    differences++;
+                } else {
+                    equals++;
+                }
+
+                const fieldClass = isDifferent ? 'field-different' : 'field-equal';
+                const statusIcon = isDifferent ? '❌' : '✅';
+
+                // Formatar valores para exibição
+                const displayValue1 = formatValueForDisplay(db1Value);
+                const displayValue2 = formatValueForDisplay(db2Value);
+
+                db1Html += `
+                    <div class="field-row ${fieldClass}">
+                        <div class="field-header">
+                            <span class="field-icon">${statusIcon}</span>
+                            <span class="field-name">${field}</span>
+                        </div>
+                        <div class="field-value" title="${String(db1Value || '').replace(/"/g, '&quot;')}">${displayValue1}</div>
+                    </div>
+                `;
+
+                db2Html += `
+                    <div class="field-row ${fieldClass}">
+                        <div class="field-header">
+                            <span class="field-icon">${statusIcon}</span>
+                            <span class="field-name">${field}</span>
+                        </div>
+                        <div class="field-value" title="${String(db2Value || '').replace(/"/g, '&quot;')}">${displayValue2}</div>
+                    </div>
+                `;
+
+                console.log(`Campo ${field}: ${isDifferent ? 'DIFERENTE' : 'IGUAL'} - DB1: ${db1Value}, DB2: ${db2Value}`);
+            });
+
+            // Atualizar containers
+            db1Container.innerHTML = db1Html;
+            db2Container.innerHTML = db2Html;
+
+            // Atualizar resumo
+            summaryContainer.innerHTML = `
+                <div class="summary-stats">
+                    <div class="summary-stat different">
+                        <span class="stat-number">${differences}</span>
+                        <span class="stat-label">Campos Diferentes</span>
+                    </div>
+                    <div class="summary-stat equal">
+                        <span class="stat-number">${equals}</span>
+                        <span class="stat-label">Campos Iguais</span>
+                    </div>
+                    <div class="summary-stat total">
+                        <span class="stat-number">${allFields.size}</span>
+                        <span class="stat-label">Total de Campos</span>
+                    </div>
+                </div>
+            `;
+
+            console.log(`✅ Comparação concluída: ${differences} diferentes, ${equals} iguais, ${allFields.size} total`);
+        }
+
+        function formatValueForDisplay(value) {
+            if (value === null || value === undefined) {
+                return '<span class="null-value">NULL</span>';
+            }
+
+            const strValue = String(value);
+
+            // Truncar valores muito longos
+            if (strValue.length > 100) {
+                return strValue.substring(0, 100) + '...';
+            }
+
+            return strValue;
+        }
+
+        function closeDifferencesModal() {
+            const modal = document.getElementById('differences-modal');
+            modal.style.display = 'none';
+            console.log('🔒 Modal de diferenças fechado');
+        }
+
+        // Fechar modal ao clicar fora dele
+        window.addEventListener('click', function (event) {
+            const modal = document.getElementById('differences-modal');
+            if (event.target === modal) {
+                closeDifferencesModal();
+            }
+        });
 
         function toggleRecordSelection(recordId, index) {
             console.log(`🔄 Toggle seleção: ${recordId}, índice: ${index}`);

@@ -1278,6 +1278,240 @@ header h1 {
     left: 100%;
 }
 
+/* Estilos para botão "Ver Diferenças" */
+.btn-view-diff {
+    background: linear-gradient(135deg, #6f42c1, #6610f2);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-view-diff:hover {
+    background: linear-gradient(135deg, #5a35a8, #551a8b);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(111, 66, 193, 0.4);
+}
+
+.action-cell {
+    text-align: center;
+    width: 120px;
+    min-width: 120px;
+}
+
+/* Modal de diferenças */
+.differences-modal-content {
+    max-width: 1200px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.comparison-header-info {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #667eea;
+}
+
+.comparison-value-info {
+    font-size: 1.1em;
+}
+
+.fields-comparison {
+    margin-bottom: 25px;
+}
+
+.comparison-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.comparison-column {
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.db-column-title {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    margin: 0;
+    padding: 15px;
+    text-align: center;
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.fields-container {
+    padding: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.field-row {
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    border: 1px solid #e1e5e9;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.field-row.field-different {
+    background: #fff5f5;
+    border-color: #fed7d7;
+    border-left: 4px solid #e53e3e;
+}
+
+.field-row.field-equal {
+    background: #f0fff4;
+    border-color: #c6f6d5;
+    border-left: 4px solid #38a169;
+}
+
+.field-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.field-icon {
+    font-size: 0.9em;
+}
+
+.field-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95em;
+}
+
+.field-value {
+    background: rgba(0, 0, 0, 0.02);
+    padding: 8px 10px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    word-break: break-all;
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+}
+
+.field-different .field-value {
+    background: rgba(229, 62, 62, 0.05);
+}
+
+.field-equal .field-value {
+    background: rgba(56, 161, 105, 0.05);
+}
+
+.differences-summary {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e1e5e9;
+}
+
+.differences-summary h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+    text-align: center;
+}
+
+.summary-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.summary-stat {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 2px solid transparent;
+}
+
+.summary-stat.different {
+    border-color: #e53e3e;
+}
+
+.summary-stat.equal {
+    border-color: #38a169;
+}
+
+.summary-stat.total {
+    border-color: #667eea;
+}
+
+.summary-stat .stat-number {
+    display: block;
+    font-size: 2em;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.summary-stat.different .stat-number {
+    color: #e53e3e;
+}
+
+.summary-stat.equal .stat-number {
+    color: #38a169;
+}
+
+.summary-stat.total .stat-number {
+    color: #667eea;
+}
+
+.summary-stat .stat-label {
+    font-size: 0.9em;
+    font-weight: 500;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Responsividade do modal */
+@media (max-width: 768px) {
+    .differences-modal-content {
+        width: 98%;
+        margin: 10px;
+    }
+
+    .comparison-columns {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .summary-stats {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .btn-view-diff {
+        padding: 4px 8px;
+        font-size: 0.8em;
+    }
+
+    .action-cell {
+        width: 100px;
+        min-width: 100px;
+    }
+}
+
 .logic-indicator {
     position: absolute;
     top: -15px;

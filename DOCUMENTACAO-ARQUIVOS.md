@@ -29,7 +29,7 @@ Baseado no arquivo `tree-output.json`, o projeto Database Sync possui a seguinte
 - Configurações: `save-config`, `get-config`, `test-connection`
 - Comparações: `get-tables-comparison`, `get-comparison-history`
 - Registros: `search-table-records`, `compare-records`, `send-records-to-database` (precisão BIGINT)
-- Filtros: `save-table-filters`, `get-table-filters`, `clear-table-filters`
+- Filtros e Configurações: `save-table-filters`, `get-table-filters`, `clear-table-filters` (estrutura v2.0)
 
 ### **`database.js`** - Gerenciador SQLite
 - **Função**: Interface única para todas operações SQLite
@@ -47,7 +47,7 @@ Baseado no arquivo `tree-output.json`, o projeto Database Sync possui a seguinte
 - `saveDbConfig()`, `getDbConfig()` - Configurações de conexão
 - `saveComparisonHistory()`, `getComparisonHistory()` - Histórico
 - `saveTableComparisonCache()`, `getTableComparisonCache()` - Cache
-- `saveTableFilters()`, `getTableFilters()`, `clearTableFilters()` - Filtros
+- `saveTableFilters()`, `getTableFilters()`, `clearTableFilters()` - Filtros e configurações (v2.0)
 
 ### **`renderer.js`** - Lógica Frontend Principal
 - **Função**: Controla interface da tela principal
@@ -110,11 +110,13 @@ Baseado no arquivo `tree-output.json`, o projeto Database Sync possui a seguinte
 ### **`records-compare.html`** - Comparação Detalhada
 - **Função**: Análise granular de registros
 - **Características**:
-  - Sistema de filtros múltiplos com persistência
+  - Seção de configurações com limite de registros configurável
+  - Sistema de filtros múltiplos com persistência no SQLite
   - Comparação lado-a-lado
   - Tabs por categoria (iguais/diferentes/únicos)
   - Seleção e envio em lote com logs detalhados
-  - Salvamento automático de filtros por projeto/tabela
+  - Salvamento automático de filtros e configurações por projeto/tabela
+  - Feedback visual quando limite de registros é atingido
 
 ---
 
@@ -224,8 +226,8 @@ Frontend (Renderer)     ←→ IPC ←→     Backend (Main)
 | **Arquivos CSS** | 1 | Design system completo |
 | **Documentação** | 5+ | README, TODO, MIGRATION, etc |
 | **Configuração** | 3 | package.json, .gitignore, etc |
-| **Total Linhas** | ~6000+ | Código completo e funcional |
-| **Funções JS** | 120+ | Lógica robusta e organizada |
+| **Total Linhas** | ~6300+ | Código completo e funcional |
+| **Funções JS** | 135+ | Lógica robusta e organizada |
 
 ---
 
@@ -253,6 +255,14 @@ O projeto Database Sync possui uma **arquitetura completa e robusta** com:
 
 ## 🚀 **FUNCIONALIDADES MAIS RECENTES**
 
+### **⚙️ Sistema de Limite Configurável (MAIS RECENTE)**
+- **Campo de configuração**: Input numérico para definir limite de registros por busca
+- **Persistência no SQLite**: Configurações salvas junto com filtros por projeto/tabela
+- **Validação automática**: Limites entre 1.000 e 500.000 registros
+- **Sincronização**: Configurações consistentes entre DB1 e DB2
+- **Feedback visual**: Notificação quando limite é atingido
+- **Compatibilidade**: Detecta e converte dados do formato antigo
+
 ### **🔍 Análise Visual de Diferenças**
 - **Botão "Ver Diferenças"**: Modal comparativo DB1 vs DB2 para registros diferentes
 - **Interface lado a lado**: Comparação campo por campo com cores distintivas
@@ -274,11 +284,12 @@ O projeto Database Sync possui uma **arquitetura completa e robusta** com:
 
 ## 📊 **MÉTRICAS FINAIS**
 
-- **6.200+ linhas** de código (+25% crescimento)
-- **125+ funções** JavaScript 
-- **21+ handlers** IPC
-- **5 tabelas** SQLite com migrações
-- **13 funcionalidades** principais
+- **6.300+ linhas** de código (+30% crescimento)
+- **135+ funções** JavaScript 
+- **21+ handlers** IPC otimizados
+- **5 tabelas** SQLite com migrações automáticas
+- **14 funcionalidades** principais
+- **Sistema de configurações** totalmente integrado
 - **Precisão 100%** para campos BIGINT
 - **Performance 5x** melhorada
 

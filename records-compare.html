@@ -174,6 +174,21 @@
                     </div>
                 </div>
 
+                <!-- Configurações Globais -->
+                <div class="global-settings">
+                    <h3>⚙️ Configurações</h3>
+                    <div class="settings-form">
+                        <div class="form-group">
+                            <label for="record-limit">Limite de registros por busca:</label>
+                            <input type="number" id="record-limit" min="1000" max="500000" step="1000"
+                                title="Quantos registros carregar de cada banco (máximo 500.000)"
+                                onchange="saveFiltersAndSettings()">
+                            <span class="field-help">Registros carregados por banco. Valores altos podem deixar a
+                                aplicação lenta.</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Comparação -->
                 <div class="comparison-controls">
                     <h3>🔄 Comparar Registros</h3>
@@ -183,6 +198,7 @@
                             <select id="compare-field-select">
                                 <option value="">Selecione um campo...</option>
                             </select>
+                            <span class="field-help">Campo usado para identificar registros únicos na comparação</span>
                         </div>
                         <button class="btn btn-success" onclick="compareRecords()" id="compare-btn" disabled>
                             <i class="icon">⚖️</i>
@@ -350,6 +366,7 @@
         selectedRecords.data = {};
         let db1Name = '';
         let db2Name = '';
+        let hasLoadedSettings = false;
 
         window.addEventListener('DOMContentLoaded', () => {
             initializePage();
@@ -365,7 +382,8 @@
                 await loadTableFields();
                 await loadDatabaseNames();
 
-                // Carregar filtros salvos para esta tabela
+                // Carregar filtros e configurações salvos para esta tabela
+                hasLoadedSettings = false; // Reset para garantir carregamento correto
                 await loadSavedFilters('db1');
                 await loadSavedFilters('db2');
 
@@ -373,6 +391,59 @@
                 updateRemoveButtons('db1');
                 updateRemoveButtons('db2');
             }
+        }
+
+        function getCurrentSettings() {
+            const recordLimit = parseInt(document.getElementById('record-limit').value) || 50000;
+
+            // Validar limite
+            const validatedLimit = Math.max(1000, Math.min(500000, recordLimit));
+
+            if (recordLimit !== validatedLimit) {
+                document.getElementById('record-limit').value = validatedLimit;
+            }
+
+            return {
+                recordLimit: validatedLimit
+            };
+        }
+
+        function applySettings(settings) {
+            if (settings && settings.recordLimit) {
+                document.getElementById('record-limit').value = settings.recordLimit;
+                console.log(`⚙️ Configurações aplicadas: limite de ${settings.recordLimit} registros`);
+            } else {
+                // Aplicar padrão
+                document.getElementById('record-limit').value = 50000;
+                console.log(`⚙️ Configurações padrão aplicadas: limite de 50000 registros`);
+            }
+        }
+
+        function showLimitWarning(database, limit) {
+            // Criar notificação temporária
+            const warning = document.createElement('div');
+            warning.className = 'limit-warning';
+            warning.innerHTML = `
+                 <div class="warning-content">
+                     <span class="warning-icon">⚠️</span>
+                     <span class="warning-text">
+                         Limite de ${limit.toLocaleString()} registros atingido no ${database === 'db1' ? db1Name : db2Name}! 
+                         Podem existir mais registros. Considere usar filtros mais específicos.
+                     </span>
+                     <button class="warning-close" onclick="this.parentElement.parentElement.remove()">×</button>
+                 </div>
+             `;
+
+            // Inserir antes da seção de resultados
+            const resultsSection = document.querySelector('.results-section');
+            resultsSection.parentNode.insertBefore(warning, resultsSection);
+
+            // Remover automaticamente após 10 segundos
+            setTimeout(() => {
+                if (warning.parentNode) {
+                    warning.remove();
+                }
+            }, 10000);
         }
 
         async function loadDatabaseNames() {
@@ -482,11 +553,15 @@
             // Mostrar resumo dos filtros
             updateFilterSummary(database, filters);
 
+            // Obter limite configurado pelo usuário
+            const recordLimit = parseInt(document.getElementById('record-limit').value) || 50000;
+
             try {
                 const result = await ipcRenderer.invoke('search-table-records', {
                     tableName: currentTableName,
                     database: database,
-                    filters: filters // Múltiplos filtros
+                    filters: filters, // Múltiplos filtros
+                    limit: recordLimit // Limite configurável
                 });
 
                 if (result.success) {
@@ -497,7 +572,20 @@
                     }
 
                     displayRecords(database, result.records);
-                    count.textContent = `${result.records.length} registros`;
+
+                    // Verificar se o limite foi atingido e mostrar aviso
+                    const limitReached = result.records.length === recordLimit;
+                    let countText = `${result.records.length} registros`;
+
+                    if (limitReached) {
+                        countText += ` ⚠️ (limite atingido)`;
+                        console.log(`⚠️ AVISO: Limite de ${recordLimit} registros atingido no ${database}! Podem existir mais registros.`);
+
+                        // Mostrar notificação visual temporária
+                        showLimitWarning(database, recordLimit);
+                    }
+
+                    count.textContent = countText;
 
                     // Habilitar botão de comparação se ambos os bancos têm dados
                     updateCompareButton();
@@ -1598,8 +1686,26 @@
                     database: database
                 });
 
-                if (result.success && result.filters.length > 0) {
-                    applySavedFilters(database, result.filters);
+                if (result.success) {
+                    // Aplicar configurações (prioritizar db1, depois db2 se db1 não tiver)
+                    if (result.settings) {
+                        if (database === 'db1') {
+                            applySettings(result.settings);
+                        } else if (database === 'db2' && !hasLoadedSettings) {
+                            // Só aplicar configurações do db2 se ainda não carregamos do db1
+                            applySettings(result.settings);
+                        }
+                        hasLoadedSettings = true;
+                    } else if (database === 'db2' && !hasLoadedSettings) {
+                        // Se nem db1 nem db2 têm configurações, aplicar padrão
+                        applySettings(null);
+                        hasLoadedSettings = true;
+                    }
+
+                    // Aplicar filtros se existirem
+                    if (result.filters && result.filters.length > 0) {
+                        applySavedFilters(database, result.filters);
+                    }
                 }
             } catch (error) {
                 console.error(`Erro ao carregar filtros para ${database}:`, error);
@@ -1715,11 +1821,13 @@
         async function saveCurrentFilters(database) {
             try {
                 const filters = collectActiveFilters(database);
+                const settings = getCurrentSettings();
 
                 const result = await ipcRenderer.invoke('save-table-filters', {
                     tableName: currentTableName,
                     database: database,
-                    filters: filters
+                    filters: filters,
+                    settings: settings
                 });
 
                 if (!result.success) {
@@ -1727,6 +1835,37 @@
                 }
             } catch (error) {
                 console.error(`Erro ao salvar filtros para ${database}:`, error);
+            }
+        }
+
+        async function saveFiltersAndSettings() {
+            // Salvar filtros e configurações nos dois bancos quando configurações forem alteradas
+            try {
+                // Salvar configurações atuais em ambos os bancos para manter sincronização
+                const settings = getCurrentSettings();
+
+                // Preservar filtros existentes de cada banco
+                const db1Filters = collectActiveFilters('db1');
+                const db2Filters = collectActiveFilters('db2');
+
+                await Promise.all([
+                    ipcRenderer.invoke('save-table-filters', {
+                        tableName: currentTableName,
+                        database: 'db1',
+                        filters: db1Filters,
+                        settings: settings
+                    }),
+                    ipcRenderer.invoke('save-table-filters', {
+                        tableName: currentTableName,
+                        database: 'db2',
+                        filters: db2Filters,
+                        settings: settings
+                    })
+                ]);
+
+                console.log('💾 Configurações sincronizadas automaticamente nos dois bancos');
+            } catch (error) {
+                console.error('Erro ao salvar configurações:', error);
             }
         }
 

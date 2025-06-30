@@ -611,7 +611,7 @@ ipcMain.handle('get-table-fields', async (event, tableName) => {
 });
 
 // Buscar registros com filtros múltiplos
-ipcMain.handle('search-table-records', async (event, { tableName, database, filters }) => {
+ipcMain.handle('search-table-records', async (event, { tableName, database, filters, limit }) => {
     try {
         const dbConfig1 = await dbManager.getDbConfig('database1', currentProjectId);
         const dbConfig2 = await dbManager.getDbConfig('database2', currentProjectId);
@@ -689,12 +689,35 @@ ipcMain.handle('search-table-records', async (event, { tableName, database, filt
             }
         }
 
-        // Limitar resultados para performance
-        query += ' LIMIT 1000';
+        // Adicionar ordenação consistente para garantir resultados determinísticos
+        // Tentar usar ID como chave primária, ou o primeiro campo disponível
+        const [primaryKeyResult] = await conn.execute(`SHOW KEYS FROM \`${tableName}\` WHERE Key_name = 'PRIMARY'`);
+        if (primaryKeyResult.length > 0) {
+            query += ` ORDER BY \`${primaryKeyResult[0].Column_name}\``;
+        } else {
+            // Se não houver chave primária, usar o primeiro campo da tabela
+            const [firstColumn] = tableStructure;
+            if (firstColumn) {
+                query += ` ORDER BY \`${firstColumn.Field}\``;
+            }
+        }
 
-        console.log(`🔍 Executando busca na tabela ${tableName}`);
+        // Usar limite configurado pelo usuário (padrão 50.000)
+        const RECORD_LIMIT = limit || 50000;
+
+        // Validar limite (entre 1.000 e 500.000)
+        const validatedLimit = Math.max(1000, Math.min(500000, RECORD_LIMIT));
+
+        query += ` LIMIT ${validatedLimit}`;
+
+        console.log(`🔍 Executando busca na tabela ${tableName} (limite: ${validatedLimit} registros)`);
 
         const [records] = await conn.execute(query, params);
+
+        // Avisar se o limite foi atingido
+        if (records.length === validatedLimit) {
+            console.log(`⚠️ AVISO: Limite de ${validatedLimit} registros atingido! Podem existir mais registros não carregados.`);
+        }
 
         // Log básico de resultados
         if (records.length > 0) {
@@ -717,40 +740,56 @@ ipcMain.handle('search-table-records', async (event, { tableName, database, filt
 // Comparar registros
 ipcMain.handle('compare-records', async (event, { db1Records, db2Records, compareField }) => {
     try {
-        console.log(`🔄 Comparando ${db1Records.length} vs ${db2Records.length} registros por campo: ${compareField}`);
-
-
+        console.log(`🔄 === INICIANDO COMPARAÇÃO DE REGISTROS ===`);
+        console.log(`📊 Registros DB1: ${db1Records.length}`);
+        console.log(`📊 Registros DB2: ${db2Records.length}`);
+        console.log(`🔑 Campo de comparação: ${compareField}`);
 
         const comparison = [];
         const db1Map = new Map();
         const db2Map = new Map();
 
         // Indexar registros do banco 1
+        let db1ValidKeys = 0;
+        let db1NullKeys = 0;
         db1Records.forEach(record => {
             const key = record[compareField];
             if (key !== null && key !== undefined) {
                 db1Map.set(String(key), record);
+                db1ValidKeys++;
+            } else {
+                db1NullKeys++;
             }
         });
 
         // Indexar registros do banco 2
+        let db2ValidKeys = 0;
+        let db2NullKeys = 0;
         db2Records.forEach(record => {
             const key = record[compareField];
             if (key !== null && key !== undefined) {
                 db2Map.set(String(key), record);
+                db2ValidKeys++;
+            } else {
+                db2NullKeys++;
             }
         });
 
+        console.log(`🗂️ Indexação concluída:`);
+        console.log(`   DB1: ${db1ValidKeys} chaves válidas, ${db1NullKeys} chaves nulas/indefinidas`);
+        console.log(`   DB2: ${db2ValidKeys} chaves válidas, ${db2NullKeys} chaves nulas/indefinidas`);
+
         // Comparar registros
         const allKeys = new Set([...db1Map.keys(), ...db2Map.keys()]);
+        console.log(`🔗 Total de chaves únicas para comparação: ${allKeys.size}`);
 
         allKeys.forEach(key => {
             const record1 = db1Map.get(key);
             const record2 = db2Map.get(key);
 
             if (record1 && record2) {
-                // Verificar se são iguais (comparação simples)
-                const isEqual = JSON.stringify(record1) === JSON.stringify(record2);
+                // Comparação mais robusta - ordenar as chaves antes da comparação JSON
+                const isEqual = compareRecordsDeepEqual(record1, record2);
                 comparison.push({
                     compareValue: key,
                     status: isEqual ? 'match' : 'different',
@@ -774,6 +813,42 @@ ipcMain.handle('compare-records', async (event, { db1Records, db2Records, compar
             }
         });
 
+        // Função auxiliar para comparação mais robusta de registros
+        function compareRecordsDeepEqual(obj1, obj2) {
+            // Se são exatamente iguais (mesma referência)
+            if (obj1 === obj2) return true;
+
+            // Se um é null/undefined e outro não
+            if (obj1 == null || obj2 == null) return obj1 === obj2;
+
+            // Se tipos diferentes
+            if (typeof obj1 !== typeof obj2) return false;
+
+            // Para objetos, comparar propriedades
+            if (typeof obj1 === 'object') {
+                const keys1 = Object.keys(obj1).sort();
+                const keys2 = Object.keys(obj2).sort();
+
+                // Se quantidade de propriedades diferente
+                if (keys1.length !== keys2.length) return false;
+
+                // Se nomes das propriedades diferentes
+                if (JSON.stringify(keys1) !== JSON.stringify(keys2)) return false;
+
+                // Comparar cada propriedade recursivamente
+                for (let key of keys1) {
+                    if (!compareRecordsDeepEqual(obj1[key], obj2[key])) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            // Para tipos primitivos, comparação direta
+            return obj1 === obj2;
+        }
+
         // Calcular estatísticas
         const stats = {
             totalDb1: db1Records.length,
@@ -784,7 +859,23 @@ ipcMain.handle('compare-records', async (event, { db1Records, db2Records, compar
                 comparison.filter(c => c.status === 'only-db2').length
         };
 
-        console.log(`📊 Comparação concluída: ${comparison.length} registros processados`);
+        console.log(`📊 === COMPARAÇÃO CONCLUÍDA ===`);
+        console.log(`📈 Total de registros processados: ${comparison.length}`);
+        console.log(`✅ Registros iguais: ${stats.totalMatch}`);
+        console.log(`⚠️ Registros diferentes: ${comparison.filter(c => c.status === 'different').length}`);
+        console.log(`❌ Só no DB1: ${comparison.filter(c => c.status === 'only-db1').length}`);
+        console.log(`❌ Só no DB2: ${comparison.filter(c => c.status === 'only-db2').length}`);
+
+        // Debug: mostrar algumas chaves que existem apenas em um banco
+        const onlyDb1Keys = comparison.filter(c => c.status === 'only-db1').slice(0, 5);
+        const onlyDb2Keys = comparison.filter(c => c.status === 'only-db2').slice(0, 5);
+
+        if (onlyDb1Keys.length > 0) {
+            console.log(`🔍 Exemplos de chaves só no DB1: ${onlyDb1Keys.map(c => c.compareValue).join(', ')}`);
+        }
+        if (onlyDb2Keys.length > 0) {
+            console.log(`🔍 Exemplos de chaves só no DB2: ${onlyDb2Keys.map(c => c.compareValue).join(', ')}`);
+        }
 
         return {
             success: true,
@@ -1212,15 +1303,24 @@ ipcMain.handle('open-projects-window', async () => {
 
 // ===== HANDLERS PARA FILTROS DE TABELAS =====
 
-// Salvar filtros de uma tabela
-ipcMain.handle('save-table-filters', async (event, { tableName, database, filters }) => {
+// Salvar filtros e configurações de uma tabela
+ipcMain.handle('save-table-filters', async (event, { tableName, database, filters, settings }) => {
     try {
         if (!currentProjectId) {
             return { success: false, message: 'Nenhum projeto selecionado' };
         }
 
-        await dbManager.saveTableFilters(currentProjectId, tableName, database, filters);
-        console.log(`💾 Filtros salvos para ${tableName} (${database}) no projeto ${currentProjectId}`);
+        // Criar estrutura de dados que inclui filtros e configurações
+        const filterData = {
+            filters: filters || [],
+            settings: settings || { recordLimit: 50000 },
+            version: '2.0', // Versão para controle de compatibilidade
+            savedAt: new Date().toISOString()
+        };
+
+        await dbManager.saveTableFilters(currentProjectId, tableName, database, filterData);
+        console.log(`💾 Filtros e configurações salvos para ${tableName} (${database}) no projeto ${currentProjectId}`);
+        console.log(`⚙️ Configurações salvas: limite ${filterData.settings.recordLimit}`);
         return { success: true };
     } catch (error) {
         console.error('❌ Erro ao salvar filtros:', error);
@@ -1228,19 +1328,44 @@ ipcMain.handle('save-table-filters', async (event, { tableName, database, filter
     }
 });
 
-// Buscar filtros salvos de uma tabela
+// Buscar filtros e configurações salvos de uma tabela
 ipcMain.handle('get-table-filters', async (event, { tableName, database }) => {
     try {
         if (!currentProjectId) {
             return { success: false, message: 'Nenhum projeto selecionado' };
         }
 
-        const filters = await dbManager.getTableFilters(currentProjectId, tableName, database);
-        console.log(`📋 Filtros carregados para ${tableName} (${database}):`, filters.length, 'filtros');
-        return { success: true, filters };
+        const filterData = await dbManager.getTableFilters(currentProjectId, tableName, database);
+
+        // Verificar se os dados estão no formato novo (v2.0) ou antigo
+        let filters = [];
+        let settings = { recordLimit: 50000 };
+
+        if (Array.isArray(filterData)) {
+            // Formato antigo - apenas array de filtros
+            filters = filterData;
+            console.log(`📋 Filtros carregados (formato legado) para ${tableName} (${database}):`, filters.length, 'filtros');
+        } else if (filterData && typeof filterData === 'object') {
+            // Formato novo - objeto com filtros e configurações
+            filters = filterData.filters || [];
+            settings = filterData.settings || { recordLimit: 50000 };
+            console.log(`📋 Filtros e configurações carregados para ${tableName} (${database}):`, filters.length, 'filtros');
+            console.log(`⚙️ Configurações carregadas: limite ${settings.recordLimit}`);
+        }
+
+        return {
+            success: true,
+            filters: filters,
+            settings: settings
+        };
     } catch (error) {
         console.error('❌ Erro ao carregar filtros:', error);
-        return { success: false, message: error.message, filters: [] };
+        return {
+            success: false,
+            message: error.message,
+            filters: [],
+            settings: { recordLimit: 50000 }
+        };
     }
 });
 

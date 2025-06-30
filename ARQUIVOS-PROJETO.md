@@ -63,9 +63,9 @@ databasesync/
 - `compare-records` - Compara registros entre bancos (otimizado para performance)
 - `send-records-to-database` - Transfere registros com precisão BIGINT 100% preservada
 
-#### **Handlers IPC - Filtros de Tabelas**
-- `save-table-filters` - Salva filtros por projeto/tabela/banco
-- `get-table-filters` - Carrega filtros salvos
+#### **Handlers IPC - Filtros e Configurações de Tabelas**
+- `save-table-filters` - Salva filtros E configurações por projeto/tabela/banco
+- `get-table-filters` - Carrega filtros E configurações salvos (compatível com formato antigo)
 - `clear-table-filters` - Limpa filtros de uma tabela
 
 ---
@@ -145,10 +145,19 @@ databasesync/
 **Responsabilidade**: Análise granular de registros de uma tabela específica
 
 **Seções Principais**:
-- **Filters Section**: Sistema de filtros múltiplos
+- **Global Settings**: Seção de configurações com limite de registros configurável
+- **Filters Section**: Sistema de filtros múltiplos com persistência
 - **Comparison Controls**: Configuração da comparação
 - **Results Section**: Tabs com registros categorizados
 - **Bulk Actions**: Ações em lote para registros selecionados
+
+**Configurações Globais**:
+- **Limite de registros**: Campo numérico configurável (1.000 - 500.000)
+- **Validação automática**: Restringe valores dentro do intervalo válido
+- **Persistência no SQLite**: Configurações salvas junto com filtros
+- **Sincronização**: Mantém configurações consistentes entre DB1 e DB2
+- **Carregamento inteligente**: Prioriza DB1, depois DB2, depois padrão (50.000)
+- **Feedback visual**: Notificação quando limite é atingido
 
 **Filtros Múltiplos**:
 - **Campos dinâmicos**: Adicionar/remover filtros
@@ -254,11 +263,21 @@ databasesync/
 - `clearTableComparisonCache()` - Limpa cache específico
 - `generateConfigHash()` - Gera hash das configurações
 
-#### **Persistência de Filtros**
-- `saveTableFilters(projectId, tableName, database, filters)` - Salva filtros por contexto
-- `getTableFilters(projectId, tableName, database)` - Carrega filtros salvos
+#### **Persistência de Filtros e Configurações**
+- `saveTableFilters(projectId, tableName, database, filterData)` - Salva filtros e configurações por contexto
+- `getTableFilters(projectId, tableName, database)` - Carrega filtros e configurações (detecta formato antigo vs novo)
 - `clearTableFilters(projectId, tableName)` - Limpa filtros de uma tabela
 - `getTablesWithFilters(projectId)` - Lista tabelas com filtros salvos
+
+**Estrutura de Dados (Novo Formato v2.0)**:
+```javascript
+{
+  filters: [...],                    // Array de filtros
+  settings: { recordLimit: 50000 },  // Configurações
+  version: '2.0',                    // Controle de versão
+  savedAt: '2024-...'               // Timestamp
+}
+```
 
 #### **Utilitários**
 - `run(sql, params)` - Executa queries de modificação
@@ -421,7 +440,7 @@ app_settings (key, value, updated_at)
 | `history.html` | ~250 | 10+ | Histórico de comparações |
 | `records-compare.html` | ~1200 | 20+ | Comparação detalhada |
 
-**TOTAL**: ~5.920 linhas de código, 120+ funções JavaScript, arquitetura completa e robusta! 🚀 
+**TOTAL**: ~6.300 linhas de código, 135+ funções JavaScript, arquitetura completa e robusta! 🚀 
 
 ## 🚀 **FUNCIONALIDADES MAIS RECENTES**
 
@@ -448,11 +467,12 @@ app_settings (key, value, updated_at)
 
 ## 📊 **MÉTRICAS FINAIS**
 
-- **6.200+ linhas** de código (+25% crescimento)
-- **125+ funções** JavaScript
-- **21+ handlers** IPC
-- **5 tabelas** SQLite com migrações  
-- **13 funcionalidades** principais
+- **6.300+ linhas** de código (+30% crescimento)
+- **135+ funções** JavaScript
+- **21+ handlers** IPC otimizados
+- **5 tabelas** SQLite com migrações automáticas
+- **14 funcionalidades** principais
+- **Sistema de configurações** totalmente integrado
 - **Precisão 100%** para campos BIGINT
 - **Performance 5x** melhorada
 

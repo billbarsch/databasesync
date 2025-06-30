@@ -2552,3 +2552,215 @@ header h1 {
         text-align: center;
     }
 }
+
+/* Configurações Globais */
+.global-settings {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #ffc107;
+}
+
+.global-settings h3 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 1.4em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: end;
+}
+
+.settings-form .form-group {
+    flex: 1;
+    min-width: 250px;
+    margin-bottom: 0;
+}
+
+.settings-form .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+    font-size: 0.95em;
+}
+
+.settings-form .form-group input[type="number"] {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    font-size: 1em;
+    font-family: inherit;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.settings-form .form-group input[type="number"]:focus {
+    outline: none;
+    border-color: #ffc107;
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.1);
+    background: white;
+}
+
+.settings-form .form-group input[type="number"]:hover {
+    border-color: #c3c8d4;
+    background: white;
+}
+
+.field-help {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.85em;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Melhorando a seção de comparação */
+.comparison-controls {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #28a745;
+}
+
+.comparison-form .form-group {
+    margin-bottom: 20px;
+}
+
+.comparison-form .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+    font-size: 0.95em;
+}
+
+.comparison-form .form-group select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    font-size: 1em;
+    font-family: inherit;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.comparison-form .form-group select:focus {
+    outline: none;
+    border-color: #28a745;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+    background: white;
+}
+
+.comparison-form .form-group select:hover {
+    border-color: #c3c8d4;
+    background: white;
+}
+
+@media (max-width: 768px) {
+    .settings-form {
+        flex-direction: column;
+    }
+
+    .settings-form .form-group {
+        min-width: 100%;
+    }
+
+    .global-settings {
+        padding: 20px;
+    }
+
+    .comparison-controls {
+        padding: 20px;
+    }
+}
+
+/* Aviso de Limite Atingido */
+.limit-warning {
+    background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+    border: 2px solid #ffc107;
+    border-radius: 10px;
+    margin: 20px 0;
+    animation: slideInDown 0.3s ease-out;
+    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+}
+
+.warning-content {
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    gap: 15px;
+}
+
+.warning-icon {
+    font-size: 1.5em;
+    flex-shrink: 0;
+}
+
+.warning-text {
+    flex: 1;
+    color: #856404;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.warning-close {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    color: #856404;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.warning-close:hover {
+    background: rgba(133, 100, 4, 0.1);
+    color: #533f03;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 768px) {
+    .warning-content {
+        padding: 12px 15px;
+        gap: 12px;
+    }
+
+    .warning-text {
+        font-size: 0.9em;
+    }
+
+    .warning-icon {
+        font-size: 1.3em;
+    }
+}

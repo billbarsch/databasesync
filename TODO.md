@@ -106,6 +106,16 @@ Este documento registra todo o desenvolvimento realizado no **Database Sync**, u
 - [x] **Métricas de resultado**: Contadores de sucessos, falhas e erros
 - [x] **Feedback visual**: Mensagens detalhadas sobre operações
 
+### ✅ **13. Sistema de Limite Configurável de Registros**
+- [x] **Campo de configuração**: Input numérico para definir limite por busca
+- [x] **Validação automática**: Limite entre 1.000 e 500.000 registros
+- [x] **Persistência no SQLite**: Configurações salvas junto com filtros por projeto/tabela
+- [x] **Sincronização entre bancos**: Configurações consistentes entre DB1 e DB2
+- [x] **Carregamento inteligente**: Prioriza DB1, depois DB2, depois padrão (50.000)
+- [x] **Feedback visual**: Avisos quando limite é atingido com notificação temporária
+- [x] **Compatibilidade**: Sistema detecta formato antigo vs novo de dados salvos
+- [x] **Interface integrada**: Campo junto com filtros na seção de configurações
+
 ---
 
 ## 🏗️ **ARQUITETURA DO PROJETO**
@@ -229,6 +239,22 @@ Ferramenta enterprise-grade para comparação de bancos MySQL com precisão num�
 
 ## 🎯 **IMPLEMENTAÇÕES MAIS RECENTES**
 
+### **📅 Fase 6 - Sistema de Limite Configurável (ATUAL)**
+
+#### **✅ Campo de Limite de Registros Configurável**
+- **Nova seção de configurações**: Adicionada acima dos filtros com campo numérico
+- **Persistência no SQLite**: Configurações salvas junto com filtros por projeto/tabela/banco
+- **Validação automática**: Limite entre 1.000 e 500.000 registros
+- **Carregamento inteligente**: Prioriza configurações do DB1, depois DB2, depois padrão
+- **Sincronização**: Configurações mantidas consistentes entre ambos os bancos
+- **Feedback visual**: Notificação temporária quando limite é atingido
+- **Compatibilidade**: Sistema detecta e converte dados salvos no formato antigo
+- **Benefícios**:
+  - Controle total sobre quantos registros carregar
+  - Resolve problema de comparações inconsistentes
+  - Interface integrada e intuitiva
+  - Persistência por projeto mantém preferências do usuário
+
 ### **📅 Fase 5 - Análise Visual de Diferenças**
 
 #### **✅ Visualização Detalhada de Registros Diferentes**
@@ -266,13 +292,15 @@ Ferramenta enterprise-grade para comparação de bancos MySQL com precisão num�
 3. **Fase 3**: Persistência de filtros + debug + correções
 4. **Fase 4**: Correção BIGINT + otimização performance
 5. **Fase 5**: Análise visual de diferenças + modal comparativo
+6. **Fase 6**: Sistema de limite configurável + persistência no SQLite
 
 ### **Métricas Finais**
-- **6.000+ linhas** de código (+20% crescimento)
-- **125+ funções** JavaScript (+25% crescimento)
+- **6.200+ linhas** de código (+25% crescimento)
+- **130+ funções** JavaScript (+30% crescimento)
 - **21+ handlers** IPC (+40% crescimento)
-- **5 tabelas** SQLite com migrações
-- **13 módulos** funcionais completos
-- **50+ commits** com evolução documentada
+- **5 tabelas** SQLite com migrações automáticas
+- **14 módulos** funcionais completos
+- **Sistema de configurações** persistente integrado
+- **55+ commits** com evolução documentada
 
 --- 
